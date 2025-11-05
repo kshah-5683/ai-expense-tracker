@@ -1,284 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Expense Tracker</title>
-    <!-- Import Tailwind CSS -->
+    <!-- 1. Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Import Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Firebase Imports -->
+    <!-- 2. Load Firebase JS libraries -->
     <script type="module">
+        // Import specific functions from the Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, 
+            doc, 
             collection, 
             addDoc, 
             onSnapshot, 
-            query,
-            setLogLevel
+            query, 
+            setDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL VARIABLES ---
+        // --- Global Firebase Variables ---
         let db, auth;
         let userId;
         let expenseListenerUnsubscribe = null; // To stop listener on auth change
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // --- START OF GITHUB PAGES MODIFICATIONS ---
+
+        // 1. Add your Firebase Config
+        // Replace this with the config object you copied from the Firebase Console.
+        const firebaseConfig = {
+          apiKey: "AIzaSyDZy2U3T3dPFepklILdR9q3W5XJ3OgRpFY",
+          authDomain: "ai-expense-tracker-b8335.firebaseapp.com",
+          projectId: "ai-expense-tracker-b8335",
+          storageBucket: "ai-expense-tracker-b8335.firebasestorage.app",
+          messagingSenderId: "203162708463",
+          appId: "1:203162708463:web:3315f19b33bb13a50aee1a",
+          measurementId: "G-B8C78G0Q3T"
+        };
+        
+        // 2. Define a unique App ID for your Firestore paths
+        // This can be any unique string.
+        const appId = 'ai-expense-tracker';
+        
+        // --- END OF GITHUB PAGES MODIFICATIONS ---
+
 
         // --- DOM ELEMENTS ---
-        let expenseInput, analyzeButton, loadingOverlay, errorModal, errorText, closeErrorButton;
+        let expenseInput, analyzeButton, loadingIndicator, errorIndicator, errorMessage, closeErrorButton;
         let totalExpenseEl, monthlyBreakdownEl, dailyBreakdownEl, expenseTableBody, userIdDisplay;
 
-        // --- STYLES ---
-        const style = document.createElement('style');
-        style.textContent = `
-            body {
-                font-family: 'Inter', sans-serif;
-            }
-            .spinner {
-                border: 4px solid rgba(255, 255, 255, 0.3);
-                border-radius: 50%;
-                border-top: 4px solid #ffffff;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            #loading-overlay {
-                transition: opacity 0.3s ease-in-out;
-            }
-            #error-modal {
-                transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // --- HELPER FUNCTIONS ---
-
-        /**
-         * Gets today's date in YYYY-MM-DD format.
-         */
-        function getTodaysDate() {
-            return new Date().toISOString().split('T')[0];
-        }
-
-        /**
-         * Shows the loading overlay.
-         */
-        function showLoading() {
-            if (loadingOverlay) {
-                loadingOverlay.classList.remove('opacity-0', 'pointer-events-none');
-            }
-        }
-
-        /**
-         * Hides the loading overlay.
-         */
-        function hideLoading() {
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
-            }
-        }
-
-        /**
-         * Shows the error modal with a message.
-         */
-        function showError(message) {
-            if (errorText && errorModal) {
-                errorText.textContent = message;
-                errorModal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-            }
-        }
-
-        /**
-         * Hides the error modal.
-         */
-        function hideError() {
-            if (errorModal) {
-                errorModal.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-            }
-        }
-
-        /**
-         * Fetches with exponential backoff.
-         */
-        async function fetchWithBackoff(url, options, retries = 5, delay = 1000) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) {
-                        return response;
-                    }
-                    console.warn(`Fetch attempt ${i + 1} failed with status: ${response.status}`);
-                } catch (error) {
-                    console.warn(`Fetch attempt ${i + 1} failed with error:`, error);
-                }
-                await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
-            }
-            throw new Error('Failed to fetch from API after several retries.');
-        }
-
-        // --- AI AGENT 1: Unstructured Text to Structured JSON ---
-
-        /**
-         * Calls Gemini API to parse raw text into structured expense data.
-         * @param {string} rawText - The unstructured text from the user.
-         * @returns {Promise<Array<Object>>} A promise that resolves to an array of expense objects.
-         */
-        async function getStructuredExpenses(rawText) {
-            const apiKey = ""; // API key is handled by the environment
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-            const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text.
-            - Today's date is ${getTodaysDate()}. Use this if a date is not specified.
-            - Infer the category (e.g., "Food", "Transport", "Utilities", "Entertainment", "Other").
-            - Return ONLY a valid JSON array matching the provided schema.
-            - Ensure all prices are numbers.
-            - Ensure all dates are in "YYYY-MM-DD" format.`;
-
-            const jsonSchema = {
-                type: "ARRAY",
-                items: {
-                    type: "OBJECT",
-                    properties: {
-                        "item": { "type": "STRING", "description": "Name or description of the expense item." },
-                        "price": { "type": "NUMBER", "description": "Cost of the item." },
-                        "date": { "type": "STRING", "description": "Date of the expense in YYYY-MM-DD format." },
-                        "category": { "type": "STRING", "description": "Inferred expense category." }
-                    },
-                    required: ["item", "price", "date", "category"]
-                }
+        // --- Helper: Debounce ---
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
             };
-
-            const payload = {
-                contents: [{ parts: [{ text: rawText }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: jsonSchema
-                }
-            };
-
-            const response = await fetchWithBackoff(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-
-            if (result.candidates && result.candidates[0].content?.parts?.[0]?.text) {
-                try {
-                    const jsonText = result.candidates[0].content.parts[0].text;
-                    const parsedJson = JSON.parse(jsonText);
-                    return parsedJson;
-                } catch (e) {
-                    console.error("Failed to parse JSON response:", e);
-                    throw new Error("AI returned invalid data. Please check the console.");
-                }
-            } else {
-                console.error("Invalid API response structure:", result);
-                throw new Error("AI Agent 1 failed. No valid content returned.");
-            }
         }
 
-        // --- FIRESTORE (Database) FUNCTIONS ---
+        // --- Core UI Functions ---
 
         /**
-         * Saves the structured expense data to Firestore.
-         * @param {Array<Object>} expenses - Array of expense objects from the AI.
-         * @param {string} uid - The user's ID.
-         */
-        async function saveExpensesToFirestore(expenses, uid) {
-            if (!db) {
-                showError("Database not initialized.");
-                return;
-            }
-            
-            const expenseCollectionRef = collection(db, `artifacts/${appId}/users/${uid}/expenses`);
-            
-            try {
-                // Add each expense as a new document
-                const promises = expenses.map(expense => addDoc(expenseCollectionRef, expense));
-                await Promise.all(promises);
-                console.log(`Successfully added ${expenses.length} expenses to Firestore.`);
-            } catch (error) {
-                console.error("Error saving expenses to Firestore:", error);
-                showError(`Failed to save expenses: ${error.message}`);
-            }
-        }
-
-        // --- "AI AGENT 2" (UI Updater) FUNCTIONS ---
-
-        /**
-         * Sets up the real-time listener for expenses.
-         * This replaces the need for "AI Agent 2".
-         * @param {string} uid - The user's ID.
-         */
-        function setupExpenseListener(uid) {
-            // Unsubscribe from any previous listener
-            if (expenseListenerUnsubscribe) {
-                expenseListenerUnsubscribe();
-            }
-            if (!db) return;
-
-            const expenseQuery = query(collection(db, `artifacts/${appId}/users/${uid}/expenses`));
-            
-            expenseListenerUnsubscribe = onSnapshot(expenseQuery, (snapshot) => {
-                const expenses = [];
-                snapshot.forEach((doc) => {
-                    expenses.push({ id: doc.id, ...doc.data() });
-                });
-                // Sort by date, newest first
-                expenses.sort((a, b) => b.date.localeCompare(a.date));
-                updateUI(expenses);
-            }, (error) => {
-                console.error("Error with expense listener:", error);
-                showError(`Real-time update failed: ${error.message}`);
-            });
-        }
-
-        /**
-         * Updates the entire UI based on the current list of expenses.
-         * @param {Array<Object>} expenses - The full list of expenses from Firestore.
-         */
-        function updateUI(expenses) {
-            updateSummaries(expenses);
-            updateExpenseTable(expenses);
-        }
-
-        /**
-         * Calculates and displays total, monthly, and daily summaries.
-         * @param {Array<Object>} expenses - The full list of expenses.
+         * Updates all summary sections based on the list of expenses.
+         * @param {Array<Object>} expenses - Array of expense objects from Firestore.
          */
         function updateSummaries(expenses) {
-            let total = 0;
+            const total = expenses.reduce((sum, exp) => sum + (exp.price || 0), 0);
             const monthly = {};
             const daily = {};
 
             expenses.forEach(exp => {
-                const price = exp.price || 0;
-                total += price;
+                try {
+                    const date = new Date(exp.date);
+                    if (isNaN(date.getTime())) return; // Skip invalid dates
 
-                // Monthly breakdown (e.g., "2025-11")
-                const month = exp.date.substring(0, 7);
-                monthly[month] = (monthly[month] || 0) + price;
+                    // Format: YYYY-MM (e.g., "2025-01")
+                    const month = date.toISOString().slice(0, 7);
+                    // Format: YYYY-MM-DD (e.g., "2025-01-15")
+                    const day = date.toISOString().slice(0, 10);
 
-                // Daily breakdown
-                const day = exp.date;
-                daily[day] = (daily[day] || 0) + price;
+                    monthly[month] = (monthly[month] || 0) + exp.price;
+                    daily[day] = (daily[day] || 0) + exp.price;
+                } catch (e) {
+                    console.warn("Skipping expense with invalid date:", exp);
+                }
             });
 
             // Update Total
@@ -287,8 +99,8 @@
             // Update Monthly
             monthlyBreakdownEl.innerHTML = '';
             const sortedMonths = Object.keys(monthly).sort().reverse();
-            if (sortedMonths.length === 0) {
-                monthlyBreakdownEl.innerHTML = `<p class="text-gray-500">No monthly data.</p>`;
+             if (sortedMonths.length === 0) {
+                monthlyBreakdownEl.innerHTML = '<p class="text-gray-500 text-sm">No monthly data yet.</p>';
             } else {
                 sortedMonths.forEach(month => {
                     const el = document.createElement('div');
@@ -303,11 +115,12 @@
 
             // Update Daily
             dailyBreakdownEl.innerHTML = '';
-            const sortedDays = Object.keys(daily).sort().reverse().slice(0, 10); // Show last 10 days
-            if (sortedDays.length === 0) {
-                dailyBreakdownEl.innerHTML = `<p class="text-gray-500">No daily data.</p>`;
+            const sortedDays = Object.keys(daily).sort().reverse();
+             if (sortedDays.length === 0) {
+                dailyBreakdownEl.innerHTML = '<p class="text-gray-500 text-sm">No daily data yet.</p>';
             } else {
-                sortedDays.forEach(day => {
+                // Show only the 10 most recent days
+                sortedDays.slice(0, 10).forEach(day => {
                     const el = document.createElement('div');
                     el.className = "flex justify-between items-center py-2 border-b";
                     el.innerHTML = `
@@ -320,25 +133,22 @@
         }
 
         /**
-         * Populates the main expense table.
-         * @param {Array<Object>} expenses - The full list of expenses (assumed sorted).
+         * Updates the main expense table.
+         * @param {Array<Object>} expenses - Array of expense objects from Firestore.
          */
         function updateExpenseTable(expenses) {
             expenseTableBody.innerHTML = '';
             if (expenses.length === 0) {
-                expenseTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center py-6 text-gray-500">
-                            No expenses found. Add some notes and click "Analyze".
-                        </td>
-                    </tr>
-                `;
+                expenseTableBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No expenses logged yet.</td></tr>';
                 return;
             }
+            
+            // Sort expenses by date, newest first
+            const sortedExpenses = expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            expenses.forEach(exp => {
+            sortedExpenses.forEach(exp => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b hover:bg-gray-50";
+                tr.className = 'hover:bg-gray-50';
                 tr.innerHTML = `
                     <td class="py-3 px-4">${exp.date}</td>
                     <td class="py-3 px-4 font-medium">${exp.item}</td>
@@ -348,60 +158,266 @@
                 expenseTableBody.appendChild(tr);
             });
         }
+        
+        // Debounced versions for performance
+        const debouncedUpdateSummaries = debounce(updateSummaries, 250);
+        const debouncedUpdateTable = debounce(updateExpenseTable, 250);
 
-        // --- EVENT HANDLERS ---
 
         /**
-         * Handles the click event for the "Analyze" button.
-         * This triggers "AI Agent 1".
+         * Shows the loading state on the analysis button.
+         * @param {boolean} isLoading - Whether to show loading state.
+         */
+        function showLoading(isLoading) {
+            if (isLoading) {
+                analyzeButton.disabled = true;
+                analyzeButton.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing...
+                `;
+            } else {
+                analyzeButton.disabled = false;
+                analyzeButton.innerHTML = 'Analyze Expenses';
+            }
+        }
+
+        /**
+         * Shows an error message.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorIndicator.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the error message.
+         */
+        function hideError() {
+            errorIndicator.classList.add('hidden');
+        }
+
+        // --- AI & Data Functions ---
+
+        /**
+         * Calls the Gemini API to extract structured data from raw text.
+         * @param {string} rawText - The raw text from the user's input.
+         * @returns {Promise<Array<Object>>} A promise that resolves to an array of expense objects.
+         */
+        async function getStructuredExpenses(rawText) {
+            
+            // --- START OF GITHUB PAGES MODIFICATIONS ---
+            
+            // 3. Add your Gemini API Key
+            // WARNING: DO NOT MAKE THIS PUBLIC ON GITHUB.
+            // ONLY use this if your repository is PRIVATE.
+            const apiKey = "AIzaSyDol6-mnR4WwaN9maUPZMowMqBAUuGNaP0"; // <-- PASTE YOUR KEY
+            
+            if (apiKey === "YOUR_GEMINI_API_KEY_HERE") {
+                 // This error is for you, to remind you to add the key.
+                throw new Error("Please add your Gemini API key in the getStructuredExpenses function.");
+            }
+            
+            // --- END OF GITHUB PAGES MODIFICATIONS ---
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text.
+- Today's date is ${new Date().toLocaleDateString()}.
+- The year is ${new Date().getFullYear()}.
+- All expenses are in Rupees (₹).
+- Convert relative dates (e.g., "yesterday", "last Friday") into an absolute "YYYY-MM-DD" format.
+- Infer the category (e.g., "Food", "Transport", "Utilities", "Shopping", "Entertainment", "Other").
+- The text may contain non-expense items; ignore them.
+
+Return ONLY a valid JSON array of objects. Each object must have:
+1.  "date" (string, "YYYY-MM-DD")
+2.  "item" (string)
+3.  "price" (number)
+4.  "category" (string)
+
+Example:
+Text: "coffee ₹150.50 yesterday, Uber ₹450"
+JSON:
+[
+  {"date": "2025-11-04", "item": "Coffee", "price": 150.50, "category": "Food"},
+  {"date": "2025-11-05", "item": "Uber ride", "price": 450.00, "category": "Transport"}
+]`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{ text: rawText }]
+                }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "date": { "type": "STRING" },
+                                "item": { "type": "STRING" },
+                                "price": { "type": "NUMBER" },
+                                "category": { "type": "STRING" }
+                            },
+                            required: ["date", "item", "price", "category"]
+                        }
+                    }
+                }
+            };
+
+            // Retry logic for API calls
+            let response;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        break; // Success
+                    }
+                    
+                    if (response.status === 429 || response.status >= 500) {
+                        // Rate limit or server error, wait and retry
+                        await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
+                        continue;
+                    }
+                    
+                    // Other client-side error
+                    const errorData = await response.json();
+                    throw new Error(`API Error ${response.status}: ${errorData?.error?.message || response.statusText}`);
+
+                } catch (error) {
+                    if (i === 2) throw error; // Re-throw last error
+                }
+            }
+            
+            if (!response.ok) {
+                throw new Error("API request failed after retries.");
+            }
+
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                // The API response is a string, which needs to be parsed into JSON
+                const jsonText = candidate.content.parts[0].text;
+                return JSON.parse(jsonText);
+            } else {
+                console.error("Invalid API response structure:", result);
+                throw new Error("Failed to get a valid response from the AI. Check console for details.");
+            }
+        }
+
+        /**
+         * Saves a new expense document to Firestore.
+         * @param {Object} expense - The expense object to save.
+         */
+        async function saveExpenseToFirestore(expense) {
+            if (!userId) {
+                throw new Error("User not authenticated.");
+            }
+            // Use a composite path for security
+            const collectionPath = `artifacts/${appId}/users/${userId}/expenses`;
+            await addDoc(collection(db, collectionPath), expense);
+        }
+
+        /**
+         * Attaches a real-time listener to the user's expenses in Firestore.
+         */
+        function attachExpenseListener() {
+            // Detach any existing listener to prevent duplicates
+            if (expenseListenerUnsubscribe) {
+                expenseListenerUnsubscribe();
+            }
+            
+            if (!userId) {
+                console.warn("No user ID, cannot attach listener.");
+                return;
+            }
+
+            console.log(`Attaching listener for user: ${userId}`);
+            const collectionPath = `artifacts/${appId}/users/${userId}/expenses`;
+            const q = query(collection(db, collectionPath));
+
+            expenseListenerUnsubscribe = onSnapshot(q, (querySnapshot) => {
+                console.log("Received data from Firestore.");
+                const expenses = [];
+                querySnapshot.forEach((doc) => {
+                    expenses.push({ id: doc.id, ...doc.data() });
+                });
+                // Update UI (debounced for performance)
+                debouncedUpdateTable(expenses);
+                debouncedUpdateSummaries(expenses);
+            }, (error) => {
+                console.error("Firestore listener error:", error);
+                showError("Error connecting to the database. Please refresh.");
+            });
+        }
+
+        // --- Event Handlers ---
+
+        /**
+         * Handles the click event on the "Analyze" button.
          */
         async function handleAnalysisClick() {
             const rawText = expenseInput.value;
             if (!rawText.trim()) {
-                showError("Please paste your expense notes first.");
-                return;
-            }
-            if (!userId) {
-                showError("User not authenticated. Please wait or refresh.");
+                showError("Please paste in your expense notes first.");
                 return;
             }
 
-            showLoading();
-            analyzeButton.disabled = true;
+            hideError();
+            showLoading(true);
 
             try {
-                // 1. AI Agent 1: Get structured data
-                const structuredData = await getStructuredExpenses(rawText);
+                // 1. Get structured data from AI
+                const expenses = await getStructuredExpenses(rawText);
                 
-                if (!structuredData || structuredData.length === 0) {
+                if (!expenses || expenses.length === 0) {
                     showError("The AI could not find any expenses in your notes.");
                     return;
                 }
 
-                // 2. Save to "Excel" (Firestore)
-                await saveExpensesToFirestore(structuredData, userId);
+                // 2. Save each expense to Firestore (in parallel)
+                const savePromises = expenses.map(exp => saveExpenseToFirestore(exp));
+                await Promise.all(savePromises);
 
-                // 3. "AI Agent 2" (onSnapshot) will automatically update the UI.
-                expenseInput.value = ''; // Clear input on success
-            
+                // 3. Clear input
+                expenseInput.value = '';
+                
+                // The onSnapshot listener will handle updating the UI automatically.
+
             } catch (error) {
                 console.error("Analysis failed:", error);
-                showError(`Analysis failed: ${error.message}`);
+                showError(`Analysis failed: ${error.message}. Please check your API key and try again.`);
             } finally {
-                hideLoading();
-                analyzeButton.disabled = false;
+                showLoading(false);
             }
         }
-        
-        // --- INITIALIZATION ---
-        
-        function initApp() {
-            // Cache DOM elements
+
+
+        // --- Initialization ---
+
+        /**
+         * Initializes the application once the DOM is loaded.
+         */
+        function initializeAppOnLoad() {
+            // Assign DOM elements
             expenseInput = document.getElementById('expense-input');
             analyzeButton = document.getElementById('analyze-button');
-            loadingOverlay = document.getElementById('loading-overlay');
-            errorModal = document.getElementById('error-modal');
-            errorText = document.getElementById('error-text');
+            loadingIndicator = document.getElementById('loading-indicator');
+            errorIndicator = document.getElementById('error-indicator');
+            errorMessage = document.getElementById('error-message');
             closeErrorButton = document.getElementById('close-error-button');
             totalExpenseEl = document.getElementById('total-expense');
             monthlyBreakdownEl = document.getElementById('monthly-breakdown');
@@ -415,71 +431,123 @@
 
             // Initialize Firebase
             try {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
+                // --- START OF GITHUB PAGES MODIFICATIONS ---
+                // 4. Initialize Firebase with your config object
+                // const firebaseConfig = JSON.parse(__firebase_config); // This line is removed
+                const app = initializeApp(firebaseConfig); // This line is modified
+                // --- END OF GITHUB PAGES MODIFICATIONS ---
+                
                 db = getFirestore(app);
                 auth = getAuth(app);
-                setLogLevel('Debug'); // Enable Firestore logging
+                
+                // Set Firestore log level for debugging
+                // setLogLevel('debug');
 
-                // Set up auth state listener
+                // Set up authentication state listener
                 onAuthStateChanged(auth, async (user) => {
+                    console.log("Auth state changed. User:", user ? user.uid : 'null');
+                    
+                    // Detach old listener if user changes (e.g., logs out)
+                    if (expenseListenerUnsubscribe) {
+                        expenseListenerUnsubscribe();
+                        expenseListenerUnsubscribe = null;
+                        console.log("Detached old listener.");
+                    }
+                    
+                    // Clear UI
+                    debouncedUpdateTable([]);
+                    debouncedUpdateSummaries([]);
+
                     if (user) {
-                        // User is signed in
+                        // User is signed in.
                         userId = user.uid;
                         userIdDisplay.textContent = `User ID: ${userId}`;
-                        console.log("User authenticated:", userId);
-                        // Start the real-time listener
-                        setupExpenseListener(userId);
+                        console.log(`User authenticated with ID: ${userId}`);
+                        
+                        // Attach the real-time listener for this user's data
+                        attachExpenseListener();
+                        
                     } else {
-                        // User is signed out, try to sign in
+                        // User is signed out or auth is initializing.
                         userId = null;
-                        if (expenseListenerUnsubscribe) expenseListenerUnsubscribe();
                         userIdDisplay.textContent = 'Authenticating...';
                         try {
-                            if (typeof __initial_auth_token !== 'undefined') {
-                                console.log("Signing in with custom token...");
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                console.log("Signing in anonymously...");
-                                await signInAnonymously(auth);
-                            }
+                            // --- START OF GITHUB PAGES MODIFICATIONS ---
+                            // 5. Use only Anonymous Sign-in
+                            // The __initial_auth_token will not exist, so we remove that logic.
+                            console.log("Signing in anonymously...");
+                            await signInAnonymously(auth);
+                            // --- END OF GITHUB PAGES MODIFICATIONS ---
+                            
                         } catch (error) {
                             console.error("Authentication failed:", error);
-                            showError(`Authentication failed: ${error.message}`);
-                            userIdDisplay.textContent = 'Authentication Failed';
+                            showError("Could not connect to the app's services. Please refresh.");
                         }
                     }
                 });
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                showError("Application failed to start. Check console.");
+                showError("Critical error: Could not initialize app. Check Firebase config.");
             }
         }
-
-        // Wait for the DOM to be fully loaded before initializing
-        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // Run the app initializer when the window is loaded
+        window.onload = initializeAppOnLoad;
 
     </script>
+    <style>
+        /* Simple scrollbar for breakdowns */
+        .breakdown-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar styles (optional) */
+        .breakdown-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .breakdown-list::-webkit-scrollbar-track {
+            background: #f1f5f9; /* gray-100 */
+        }
+        .breakdown-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* gray-300 */
+            border-radius: 3px;
+        }
+        .breakdown-list::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* gray-400 */
+        }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
+<body class="bg-gray-100 font-sans leading-normal tracking-normal h-full">
 
-    <!-- User ID Header -->
-    <header class="bg-white shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2 text-right">
-            <span id="user-id-display" class="text-xs font-mono text-gray-500">Initializing...</span>
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+        <!-- Header -->
+        <header class="mb-6 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">AI Expense Tracker</h1>
+            <div id="user-id-display" class="text-xs text-gray-500 bg-white py-1 px-3 rounded-full shadow-sm">
+                Connecting...
+            </div>
+        </header>
+
+        <!-- Error Indicator -->
+        <div id="error-indicator" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 shadow-md" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span id="error-message" class="block sm:inline">Something went wrong.</span>
+            <span id="close-error-button" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
+                <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+            </span>
         </div>
-    </header>
 
-    <!-- Main Content -->
-    <main class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <!-- Left Column: Input & Summary -->
-            <div class="lg:col-span-1 flex flex-col gap-6">
-                <!-- AI Input Card -->
+            <!-- Left Column: Input & Summaries -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- Input Card -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h1 class="text-xl font-semibold mb-4">Expense Brain Dump</h1>
+                    <h2 class="text-lg font-semibold mb-4">Add Expenses</h2>
                     <p class="text-sm text-gray-600 mb-4">
                         Paste your expense notes from anywhere (Google Docs, Notes, etc.). The AI will read and categorize them.
                     </p>
@@ -500,67 +568,48 @@
                 <!-- Monthly Card -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-semibold mb-4">Monthly Breakdown</h2>
-                    <div id="monthly-breakdown" class="space-y-2 text-sm">
-                        <p class="text-gray-500">No monthly data.</p>
+                    <div id="monthly-breakdown" class="breakdown-list space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
                     </div>
                 </div>
-                
+
                 <!-- Daily Card -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-lg font-semibold mb-4">Recent Daily Breakdown</h2>
-                    <div id="daily-breakdown" class="space-y-2 text-sm">
-                        <p class="text-gray-500">No daily data.</p>
+                    <h2 class="text-lg font-semibold mb-4">Recent Daily Totals</h2>
+                    <div id="daily-breakdown" class="breakdown-list space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Column: Expense List -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-4">All Expenses</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                <th class="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="expense-table-body" class="bg-white divide-y divide-gray-200 text-sm">
-                            <tr>
-                                <td colspan="4" class="text-center py-6 text-gray-500">
-                                    No expenses found. Add some notes and click "Analyze".
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Right Column: Expense Table -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <h2 class="text-lg font-semibold p-6 border-b">Full Expense Log</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th scope="col" class="py-3 px-4 text-left text-xs font-m
+                                    edium text-gray-500 uppercase tracking-wider">Category</th>
+                                    <th scope="col" class="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                tran</tr>
+                            </thead>
+                            <tbody id="expense-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Rows will be injected by JS -->
+                                <tr>
+                                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Loading expenses...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-        </div>
-    </main>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 opacity-0 pointer-events-none">
-        <div class="flex flex-col items-center">
-            <div class="spinner"></div>
-            <p class="text-white text-lg mt-4">AI Agent 1 is thinking...</p>
-        </div>
-    </div>
-
-    <!-- Error Modal -->
-    <div id="error-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 opacity-0 pointer-events-none scale-95">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-            <h3 class="text-lg font-medium text-red-600">Error</h3>
-            <p id="error-text" class="mt-2 text-sm text-gray-700">Something went wrong.</p>
-            <div class="mt-4 text-right">
-                <button id="close-error-button" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                    Close
-                </button>
-            </div>
-        </div>
-    </div>
+        </div> <!-- /grid -->
+    </div> <!-- /container -->
 
 </body>
 </html>
