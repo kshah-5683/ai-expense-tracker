@@ -1,0 +1,15 @@
+# This file tells Netlify how to build your site and handle routing.
+
+[build]
+  # We have no build step, our site is just static HTML
+  # But we must tell Netlify where our functions are.
+  functions = "netlify/functions/"
+  # Tell Netlify our main site is just the root.
+  publish = "/"
+
+[[redirects]]
+  # This rule proxies all requests from "/api/*"
+  # to our serverless function, making the URL clean.
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200 # 200 means it's a rewrite (proxy)
