@@ -27,25 +27,24 @@
         let userId;
         let expenseListenerUnsubscribe = null; // To stop listener on auth change
         
-        // --- START OF GITHUB PAGES MODIFICATIONS ---
+        // --- START OF NETLIFY MODIFICATIONS ---
 
         // 1. Add your Firebase Config
-        // Replace this with the config object you copied from the Firebase Console.
+        // This is safe to be public. Security is handled by Firestore Rules.
         const firebaseConfig = {
-          apiKey: "AIzaSyDZy2U3T3dPFepklILdR9q3W5XJ3OgRpFY",
-          authDomain: "ai-expense-tracker-b8335.firebaseapp.com",
-          projectId: "ai-expense-tracker-b8335",
-          storageBucket: "ai-expense-tracker-b8335.firebasestorage.app",
-          messagingSenderId: "203162708463",
-          appId: "1:203162708463:web:3315f19b33bb13a50aee1a",
-          measurementId: "G-B8C78G0Q3T"
+          apiKey: "YOUR_FIREBASE_API_KEY", // <-- Paste your Firebase key
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
         };
         
         // 2. Define a unique App ID for your Firestore paths
         // This can be any unique string.
         const appId = 'ai-expense-tracker';
         
-        // --- END OF GITHUB PAGES MODIFICATIONS ---
+        // --- END OF NETLIFY MODIFICATIONS ---
 
 
         // --- DOM ELEMENTS ---
@@ -203,118 +202,43 @@
         // --- AI & Data Functions ---
 
         /**
-         * Calls the Gemini API to extract structured data from raw text.
+         * Calls the *secure proxy function* to get structured data from raw text.
          * @param {string} rawText - The raw text from the user's input.
          * @returns {Promise<Array<Object>>} A promise that resolves to an array of expense objects.
          */
         async function getStructuredExpenses(rawText) {
             
-            // --- START OF GITHUB PAGES MODIFICATIONS ---
+            // --- START OF NETLIFY MODIFICATIONS ---
             
-            // 3. Add your Gemini API Key
-            // WARNING: DO NOT MAKE THIS PUBLIC ON GITHUB.
-            // ONLY use this if your repository is PRIVATE.
-            const apiKey = "AIzaSyDol6-mnR4WwaN9maUPZMowMqBAUuGNaP0"; // <-- PASTE YOUR KEY
+            // 3. This function is now SECURE.
+            // It calls our own serverless function (the proxy)
+            // instead of calling the Gemini API directly.
+            // The secret API key is no longer in this file!
             
-            if (apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-                 // This error is for you, to remind you to add the key.
-                throw new Error("Please add your Gemini API key in the getStructuredExpenses function.");
-            }
+            // This URL path is handled by Netlify (see netlify.toml)
+            const proxyApiUrl = "/api/getExpenses"; 
             
-            // --- END OF GITHUB PAGES MODIFICATIONS ---
+            // --- END OF NETLIFY MODIFICATIONS ---
             
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const response = await fetch(proxyApiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rawText: rawText }) // Send the raw text to our function
+            });
 
-            const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text.
-- Today's date is ${new Date().toLocaleDateString()}.
-- The year is ${new Date().getFullYear()}.
-- All expenses are in Rupees (₹).
-- Convert relative dates (e.g., "yesterday", "last Friday") into an absolute "YYYY-MM-DD" format.
-- Infer the category (e.g., "Food", "Transport", "Utilities", "Shopping", "Entertainment", "Other").
-- The text may contain non-expense items; ignore them.
-
-Return ONLY a valid JSON array of objects. Each object must have:
-1.  "date" (string, "YYYY-MM-DD")
-2.  "item" (string)
-3.  "price" (number)
-4.  "category" (string)
-
-Example:
-Text: "coffee ₹150.50 yesterday, Uber ₹450"
-JSON:
-[
-  {"date": "2025-11-04", "item": "Coffee", "price": 150.50, "category": "Food"},
-  {"date": "2025-11-05", "item": "Uber ride", "price": 450.00, "category": "Transport"}
-]`;
-            
-            const payload = {
-                contents: [{
-                    parts: [{ text: rawText }]
-                }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                "date": { "type": "STRING" },
-                                "item": { "type": "STRING" },
-                                "price": { "type": "NUMBER" },
-                                "category": { "type": "STRING" }
-                            },
-                            required: ["date", "item", "price", "category"]
-                        }
-                    }
-                }
-            };
-
-            // Retry logic for API calls
-            let response;
-            for (let i = 0; i < 3; i++) {
-                try {
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (response.ok) {
-                        break; // Success
-                    }
-                    
-                    if (response.status === 429 || response.status >= 500) {
-                        // Rate limit or server error, wait and retry
-                        await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
-                        continue;
-                    }
-                    
-                    // Other client-side error
-                    const errorData = await response.json();
-                    throw new Error(`API Error ${response.status}: ${errorData?.error?.message || response.statusText}`);
-
-                } catch (error) {
-                    if (i === 2) throw error; // Re-throw last error
-                }
-            }
-            
             if (!response.ok) {
-                throw new Error("API request failed after retries.");
+                const errorData = await response.json();
+                throw new Error(errorData.error || "The AI analysis function failed.");
             }
 
+            // Our function returns the JSON directly
             const result = await response.json();
-            const candidate = result.candidates?.[0];
-
-            if (candidate && candidate.content?.parts?.[0]?.text) {
-                // The API response is a string, which needs to be parsed into JSON
-                const jsonText = candidate.content.parts[0].text;
-                return JSON.parse(jsonText);
+            
+            if (result.expenses) {
+                return result.expenses;
             } else {
-                console.error("Invalid API response structure:", result);
-                throw new Error("Failed to get a valid response from the AI. Check console for details.");
+                 console.error("Invalid response from proxy:", result);
+                throw new Error("Failed to get a valid response from the AI function.");
             }
         }
 
@@ -380,7 +304,7 @@ JSON:
             showLoading(true);
 
             try {
-                // 1. Get structured data from AI
+                // 1. Get structured data from AI (via our secure function)
                 const expenses = await getStructuredExpenses(rawText);
                 
                 if (!expenses || expenses.length === 0) {
@@ -399,7 +323,7 @@ JSON:
 
             } catch (error) {
                 console.error("Analysis failed:", error);
-                showError(`Analysis failed: ${error.message}. Please check your API key and try again.`);
+                showError(`Analysis failed: ${error.message}. Please try again.`);
             } finally {
                 showLoading(false);
             }
@@ -431,11 +355,10 @@ JSON:
 
             // Initialize Firebase
             try {
-                // --- START OF GITHUB PAGES MODIFICATIONS ---
+                // --- START OF NETLIFY MODIFICATIONS ---
                 // 4. Initialize Firebase with your config object
-                // const firebaseConfig = JSON.parse(__firebase_config); // This line is removed
                 const app = initializeApp(firebaseConfig); // This line is modified
-                // --- END OF GITHUB PAGES MODIFICATIONS ---
+                // --- END OF NETLIFY MODIFICATIONS ---
                 
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -472,12 +395,11 @@ JSON:
                         userId = null;
                         userIdDisplay.textContent = 'Authenticating...';
                         try {
-                            // --- START OF GITHUB PAGES MODIFICATIONS ---
+                            // --- START OF NETLIFY MODIFICATIONS ---
                             // 5. Use only Anonymous Sign-in
-                            // The __initial_auth_token will not exist, so we remove that logic.
                             console.log("Signing in anonymously...");
                             await signInAnonymously(auth);
-                            // --- END OF GITHUB PAGES MODIFICATIONS ---
+                            // --- END OF NETLIFY MODIFICATIONS ---
                             
                         } catch (error) {
                             console.error("Authentication failed:", error);
