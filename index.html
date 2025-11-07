@@ -8,9 +8,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 2. Load Firebase JS libraries -->
     <script type="module">
-        // Import specific functions from the Firebase SDK
+        // --- NEW EMAIL AUTH IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // --- (No more signInAnonymously) ---
+
         import { 
             getFirestore, 
             doc, 
@@ -25,14 +33,11 @@
         // --- Global Firebase Variables ---
         let db, auth;
         let userId;
-        let expenseListenerUnsubscribe = null; // To stop listener on auth change
+        let expenseListenerUnsubscribe = null; 
         
-        // --- START OF NETLIFY MODIFICATIONS ---
-
-        // 1. Add your Firebase Config
-        // This is safe to be public. Security is handled by Firestore Rules.
+        // 1. Add your Firebase Config (Check this carefully!)
         const firebaseConfig = {
-          apiKey: "YOUR_FIREBASE_API_KEY", // <-- Paste your Firebase key
+          apiKey: "YOUR_FIREBASE_API_KEY", 
           authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
           projectId: "YOUR_PROJECT_ID",
           storageBucket: "YOUR_PROJECT_ID.appspot.com",
@@ -40,16 +45,15 @@
           appId: "YOUR_APP_ID"
         };
         
-        // 2. Define a unique App ID for your Firestore paths
-        // This can be any unique string.
         const appId = 'ai-expense-tracker';
-        
-        // --- END OF NETLIFY MODIFICATIONS ---
-
 
         // --- DOM ELEMENTS ---
         let expenseInput, analyzeButton, loadingIndicator, errorIndicator, errorMessage, closeErrorButton;
-        let totalExpenseEl, monthlyBreakdownEl, dailyBreakdownEl, expenseTableBody, userIdDisplay;
+        let totalExpenseEl, monthlyBreakdownEl, dailyBreakdownEl, expenseTableBody;
+        
+        // --- NEW AUTH UI ELEMENTS ---
+        let authModal, loginButton, logoutButton, userInfoDisplay, userIdDisplay;
+        let loginForm, registerForm, authError, authTabs, loginTab, registerTab;
 
         // --- Helper: Debounce ---
         function debounce(func, wait) {
@@ -64,12 +68,7 @@
             };
         }
 
-        // --- Core UI Functions ---
-
-        /**
-         * Updates all summary sections based on the list of expenses.
-         * @param {Array<Object>} expenses - Array of expense objects from Firestore.
-         */
+        // --- Core UI Functions (Unchanged) ---
         function updateSummaries(expenses) {
             const total = expenses.reduce((sum, exp) => sum + (exp.price || 0), 0);
             const monthly = {};
@@ -78,11 +77,9 @@
             expenses.forEach(exp => {
                 try {
                     const date = new Date(exp.date);
-                    if (isNaN(date.getTime())) return; // Skip invalid dates
+                    if (isNaN(date.getTime())) return; 
 
-                    // Format: YYYY-MM (e.g., "2025-01")
                     const month = date.toISOString().slice(0, 7);
-                    // Format: YYYY-MM-DD (e.g., "2025-01-15")
                     const day = date.toISOString().slice(0, 10);
 
                     monthly[month] = (monthly[month] || 0) + exp.price;
@@ -92,10 +89,8 @@
                 }
             });
 
-            // Update Total
             totalExpenseEl.textContent = `₹${total.toFixed(2)}`;
 
-            // Update Monthly
             monthlyBreakdownEl.innerHTML = '';
             const sortedMonths = Object.keys(monthly).sort().reverse();
              if (sortedMonths.length === 0) {
@@ -112,13 +107,11 @@
                 });
             }
 
-            // Update Daily
             dailyBreakdownEl.innerHTML = '';
             const sortedDays = Object.keys(daily).sort().reverse();
              if (sortedDays.length === 0) {
                 dailyBreakdownEl.innerHTML = '<p class="text-gray-500 text-sm">No daily data yet.</p>';
             } else {
-                // Show only the 10 most recent days
                 sortedDays.slice(0, 10).forEach(day => {
                     const el = document.createElement('div');
                     el.className = "flex justify-between items-center py-2 border-b";
@@ -131,18 +124,13 @@
             }
         }
 
-        /**
-         * Updates the main expense table.
-         * @param {Array<Object>} expenses - Array of expense objects from Firestore.
-         */
         function updateExpenseTable(expenses) {
             expenseTableBody.innerHTML = '';
             if (expenses.length === 0) {
-                expenseTableBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No expenses logged yet.</td></tr>';
+                expenseTableBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Log in to see your expenses.</td></tr>';
                 return;
             }
             
-            // Sort expenses by date, newest first
             const sortedExpenses = expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             sortedExpenses.forEach(exp => {
@@ -158,15 +146,9 @@
             });
         }
         
-        // Debounced versions for performance
         const debouncedUpdateSummaries = debounce(updateSummaries, 250);
         const debouncedUpdateTable = debounce(updateExpenseTable, 250);
 
-
-        /**
-         * Shows the loading state on the analysis button.
-         * @param {boolean} isLoading - Whether to show loading state.
-         */
         function showLoading(isLoading) {
             if (isLoading) {
                 analyzeButton.disabled = true;
@@ -183,47 +165,24 @@
             }
         }
 
-        /**
-         * Shows an error message.
-         * @param {string} message - The error message to display.
-         */
         function showError(message) {
             errorMessage.textContent = message;
             errorIndicator.classList.remove('hidden');
         }
 
-        /**
-         * Hides the error message.
-         */
         function hideError() {
             errorIndicator.classList.add('hidden');
         }
 
-        // --- AI & Data Functions ---
+        // --- AI & Data Functions (Unchanged) ---
 
-        /**
-         * Calls the *secure proxy function* to get structured data from raw text.
-         * @param {string} rawText - The raw text from the user's input.
-         * @returns {Promise<Array<Object>>} A promise that resolves to an array of expense objects.
-         */
         async function getStructuredExpenses(rawText) {
-            
-            // --- START OF NETLIFY MODIFICATIONS ---
-            
-            // 3. This function is now SECURE.
-            // It calls our own serverless function (the proxy)
-            // instead of calling the Gemini API directly.
-            // The secret API key is no longer in this file!
-            
-            // This URL path is handled by Netlify (see netlify.toml)
             const proxyApiUrl = "/api/getExpenses"; 
-            
-            // --- END OF NETLIFY MODIFICATIONS ---
             
             const response = await fetch(proxyApiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rawText: rawText }) // Send the raw text to our function
+                body: JSON.stringify({ rawText: rawText })
             });
 
             if (!response.ok) {
@@ -231,7 +190,6 @@
                 throw new Error(errorData.error || "The AI analysis function failed.");
             }
 
-            // Our function returns the JSON directly
             const result = await response.json();
             
             if (result.expenses) {
@@ -242,24 +200,15 @@
             }
         }
 
-        /**
-         * Saves a new expense document to Firestore.
-         * @param {Object} expense - The expense object to save.
-         */
         async function saveExpenseToFirestore(expense) {
             if (!userId) {
                 throw new Error("User not authenticated.");
             }
-            // Use a composite path for security
             const collectionPath = `artifacts/${appId}/users/${userId}/expenses`;
             await addDoc(collection(db, collectionPath), expense);
         }
 
-        /**
-         * Attaches a real-time listener to the user's expenses in Firestore.
-         */
         function attachExpenseListener() {
-            // Detach any existing listener to prevent duplicates
             if (expenseListenerUnsubscribe) {
                 expenseListenerUnsubscribe();
             }
@@ -279,7 +228,6 @@
                 querySnapshot.forEach((doc) => {
                     expenses.push({ id: doc.id, ...doc.data() });
                 });
-                // Update UI (debounced for performance)
                 debouncedUpdateTable(expenses);
                 debouncedUpdateSummaries(expenses);
             }, (error) => {
@@ -288,11 +236,8 @@
             });
         }
 
-        // --- Event Handlers ---
+        // --- Event Handlers (Analyze button is Unchanged) ---
 
-        /**
-         * Handles the click event on the "Analyze" button.
-         */
         async function handleAnalysisClick() {
             const rawText = expenseInput.value;
             if (!rawText.trim()) {
@@ -304,7 +249,6 @@
             showLoading(true);
 
             try {
-                // 1. Get structured data from AI (via our secure function)
                 const expenses = await getStructuredExpenses(rawText);
                 
                 if (!expenses || expenses.length === 0) {
@@ -312,14 +256,9 @@
                     return;
                 }
 
-                // 2. Save each expense to Firestore (in parallel)
                 const savePromises = expenses.map(exp => saveExpenseToFirestore(exp));
                 await Promise.all(savePromises);
-
-                // 3. Clear input
                 expenseInput.value = '';
-                
-                // The onSnapshot listener will handle updating the UI automatically.
 
             } catch (error) {
                 console.error("Analysis failed:", error);
@@ -329,12 +268,96 @@
             }
         }
 
+        // --- NEW AUTHENTICATION FUNCTIONS ---
+
+        /**
+         * Toggles the visibility of the authentication modal.
+         * @param {boolean} show - Whether to show the modal.
+         */
+        function showAuthModal(show) {
+            if (show) {
+                authModal.classList.remove('hidden');
+            } else {
+                authModal.classList.add('hidden');
+                authError.textContent = ''; // Clear errors
+            }
+        }
+
+        /**
+         * Switches between the Login and Register tabs in the modal.
+         * @param {'login' | 'register'} tab - The tab to show.
+         */
+        function switchAuthTab(tab) {
+            authError.textContent = '';
+            if (tab === 'login') {
+                loginTab.classList.add('border-indigo-500', 'text-indigo-600');
+                loginTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                registerTab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                registerTab.classList.remove('border-indigo-500', 'text-indigo-600');
+                
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                registerTab.classList.add('border-indigo-500', 'text-indigo-600');
+                registerTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                loginTab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                loginTab.classList.remove('border-indigo-500', 'text-indigo-600');
+                
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Handles the user registration form submission.
+         */
+        async function handleRegister(e) {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
+            
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged will handle closing the modal
+            } catch (error) {
+                console.error("Registration failed:", error);
+                authError.textContent = error.message;
+            }
+        }
+
+        /**
+         * Handles the user login form submission.
+         */
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged will handle closing the modal
+            } catch (error) {
+                console.error("Login failed:", error);
+                authError.textContent = error.message;
+            }
+        }
+
+        /**
+         * Handles the user logout click.
+         */
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged will handle UI cleanup
+            } catch (error) {
+                console.error("Logout failed:", error);
+                showError("Logout failed. Please try again.");
+            }
+        }
+
 
         // --- Initialization ---
 
-        /**
-         * Initializes the application once the DOM is loaded.
-         */
         function initializeAppOnLoad() {
             // Assign DOM elements
             expenseInput = document.getElementById('expense-input');
@@ -347,121 +370,190 @@
             monthlyBreakdownEl = document.getElementById('monthly-breakdown');
             dailyBreakdownEl = document.getElementById('daily-breakdown');
             expenseTableBody = document.getElementById('expense-table-body');
+            
+            // Assign NEW AUTH elements
+            authModal = document.getElementById('auth-modal');
+            loginButton = document.getElementById('login-button');
+            logoutButton = document.getElementById('logout-button');
+            userInfoDisplay = document.getElementById('user-info-display');
             userIdDisplay = document.getElementById('user-id-display');
+            loginForm = document.getElementById('login-form');
+            registerForm = document.getElementById('register-form');
+            authError = document.getElementById('auth-error');
+            authTabs = document.getElementById('auth-tabs');
+            loginTab = document.getElementById('login-tab');
+            registerTab = document.getElementById('register-tab');
 
             // Attach event listeners
             analyzeButton.addEventListener('click', handleAnalysisClick);
             closeErrorButton.addEventListener('click', hideError);
+            
+            // Attach NEW AUTH listeners
+            loginButton.addEventListener('click', () => showAuthModal(true));
+            logoutButton.addEventListener('click', handleLogout);
+            document.getElementById('close-modal-button').addEventListener('click', () => showAuthModal(false));
+            loginTab.addEventListener('click', () => switchAuthTab('login'));
+            registerTab.addEventListener('click', () => switchAuthTab('register'));
+            loginForm.addEventListener('submit', handleLogin);
+            registerForm.addEventListener('submit', handleRegister);
+
 
             // Initialize Firebase
             try {
-                // --- START OF NETLIFY MODIFICATIONS ---
-                // 4. Initialize Firebase with your config object
-                const app = initializeApp(firebaseConfig); // This line is modified
-                // --- END OF NETLIFY MODIFICATIONS ---
-                
+                const app = initializeApp(firebaseConfig); 
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Set Firestore log level for debugging
                 // setLogLevel('debug');
 
-                // Set up authentication state listener
+                // --- UPDATED AUTH STATE LISTENER ---
                 onAuthStateChanged(auth, async (user) => {
                     console.log("Auth state changed. User:", user ? user.uid : 'null');
                     
-                    // Detach old listener if user changes (e.g., logs out)
                     if (expenseListenerUnsubscribe) {
                         expenseListenerUnsubscribe();
                         expenseListenerUnsubscribe = null;
                         console.log("Detached old listener.");
                     }
                     
-                    // Clear UI
                     debouncedUpdateTable([]);
                     debouncedUpdateSummaries([]);
 
                     if (user) {
                         // User is signed in.
                         userId = user.uid;
-                        userIdDisplay.textContent = `User ID: ${userId}`;
-                        console.log(`User authenticated with ID: ${userId}`);
+                        userIdDisplay.textContent = user.email; // Show email instead of ID
+                        userInfoDisplay.classList.remove('hidden'); // Show user info
+                        loginButton.classList.add('hidden');      // Hide login button
+                        showAuthModal(false);                     // Hide modal if open
                         
-                        // Attach the real-time listener for this user's data
+                        console.log(`User authenticated: ${user.email}`);
                         attachExpenseListener();
                         
                     } else {
-                        // User is signed out or auth is initializing.
+                        // User is signed out.
                         userId = null;
-                        userIdDisplay.textContent = 'Authenticating...';
-                        try {
-                            // --- START OF NETLIFY MODIFICATIONS ---
-                            // 5. Use only Anonymous Sign-in
-                            console.log("Signing in anonymously...");
-                            await signInAnonymously(auth);
-                            // --- END OF NETLIFY MODIFICATIONS ---
-                            
-                        } catch (error) {
-                            console.error("Authentication failed:", error);
-                            showError("Could not connect to the app's services. Please refresh.");
-                        }
+                        userInfoDisplay.classList.add('hidden'); // Hide user info
+                        loginButton.classList.remove('hidden');    // Show login button
+                        
+                        // **CRITICAL:** Show the login modal instead of signing in anonymously
+                        showAuthModal(true);
+                        
+                        // Clear the table and show a login message
+                        expenseTableBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Log in to see your expenses.</td></tr>';
                     }
                 });
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
+                // This is the error you are probably seeing, caused by bad config
                 showError("Critical error: Could not initialize app. Check Firebase config.");
             }
         }
         
-        // Run the app initializer when the window is loaded
         window.onload = initializeAppOnLoad;
 
     </script>
     <style>
-        /* Simple scrollbar for breakdowns */
-        .breakdown-list {
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        /* Custom scrollbar styles (optional) */
-        .breakdown-list::-webkit-scrollbar {
-            width: 6px;
-        }
-        .breakdown-list::-webkit-scrollbar-track {
-            background: #f1f5f9; /* gray-100 */
-        }
-        .breakdown-list::-webkit-scrollbar-thumb {
-            background: #cbd5e1; /* gray-300 */
-            border-radius: 3px;
-        }
-        .breakdown-list::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; /* gray-400 */
-        }
+        .breakdown-list { max-height: 250px; overflow-y: auto; }
+        .breakdown-list::-webkit-scrollbar { width: 6px; }
+        .breakdown-list::-webkit-scrollbar-track { background: #f1f5f9; }
+        .breakdown-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .breakdown-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal h-full">
+
+    <!-- NEW: Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-xl font-semibold">Login or Register</h2>
+                <button id="close-modal-button" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="border-b border-gray-200">
+                <nav id="auth-tabs" class="-mb-px flex" aria-label="Tabs">
+                    <button id="login-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">
+                        Login
+                    </button>
+                    <button id="register-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Register
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6">
+                <!-- Login Form -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700">Email address</label>
+                        <input type="email" name="email" id="login-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" name="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <p id="auth-error" class="text-sm text-red-600"></p>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Login
+                    </button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label for="register-email" class="block text-sm font-medium text-gray-700">Email address</label>
+                        <input type="email" name="email" id="register-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" name="password" id="register-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Create Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
 
     <div class="container mx-auto p-4 md:p-8 max-w-6xl">
 
         <!-- Header -->
         <header class="mb-6 flex justify-between items-center">
             <h1 class="text-3xl font-bold text-gray-800">AI Expense Tracker</h1>
-            <div id="user-id-display" class="text-xs text-gray-500 bg-white py-1 px-3 rounded-full shadow-sm">
-                Connecting...
+            
+            <!-- UPDATED: Auth UI -->
+            <div>
+                <button id="login-button" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Login
+                </button>
+                <div id="user-info-display" class="hidden flex items-center space-x-4">
+                    <span id="user-id-display" class="text-sm text-gray-600 bg-white py-1 px-3 rounded-full shadow-sm">
+                        ...
+                    </span>
+                    <button id="logout-button" class="text-sm text-gray-500 hover:text-indigo-600">
+                        Logout
+                    </button>
+                </div>
             </div>
         </header>
 
-        <!-- Error Indicator -->
+        <!-- Error Indicator (Unchanged) -->
         <div id="error-indicator" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 shadow-md" role="alert">
             <strong class="font-bold">Error:</strong>
             <span id="error-message" class="block sm:inline">Something went wrong.</span>
             <span id="close-error-button" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
-                <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
             </span>
         </div>
 
-        <!-- Main Content Grid -->
+        <!-- Main Content Grid (Unchanged) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             <!-- Left Column: Input & Summaries -->
@@ -471,7 +563,7 @@
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-semibold mb-4">Add Expenses</h2>
                     <p class="text-sm text-gray-600 mb-4">
-                        Paste your expense notes from anywhere (Google Docs, Notes, etc.). The AI will read and categorize them.
+                        Paste your expense notes from anywhere. The AI will read and categorize them.
                     </p>
                     <textarea id="expense-input" rows="10" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="e.g.&#10;- Coffee with client ₹150.50 yesterday&#10;- Groceries at Safeway ₹2300.12 11/01/2025&#10;- Uber ride ₹450.00"></textarea>
                     <button id="analyze-button" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
@@ -491,15 +583,16 @@
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-semibold mb-4">Monthly Breakdown</h2>
                     <div id="monthly-breakdown" class="breakdown-list space-y-2">
-                        <p class="text-gray-500 text-sm">Loading...</p>
+                        <p class="text-gray-500 text-sm">Log in for details.</p>
                     </div>
                 </div>
 
+D
                 <!-- Daily Card -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-semibold mb-4">Recent Daily Totals</h2>
                     <div id="daily-breakdown" class="breakdown-list space-y-2">
-                        <p class="text-gray-500 text-sm">Loading...</p>
+                        <p class="text-gray-500 text-sm">Log in for details.</p>
                     </div>
                 </div>
             </div>
@@ -520,9 +613,8 @@
                                 tran</tr>
                             </thead>
                             <tbody id="expense-table-body" class="bg-white divide-y divide-gray-200">
-                                <!-- Rows will be injected by JS -->
                                 <tr>
-                                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Loading expenses...</td>
+                                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Log in to see your expenses.</td>
                                 </tr>
                             </tbody>
                         </table>
