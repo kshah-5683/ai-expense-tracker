@@ -55,6 +55,11 @@
         let expenseListenerUnsubscribe = null;
         let allExpenses = []; // Store all expenses globally
         
+        // --- NEW: Budget Variables ---
+        let monthlyBudget = 0;
+        let budgetListenerUnsubscribe = null;
+
+        
         // 1. Add your Firebase Config (Check this carefully!)
         const firebaseConfig = {
           apiKey: "AIzaSyDZy2U3T3dPFepklILdR9q3W5XJ3OgRpFY",
@@ -79,8 +84,11 @@
         let trackerTabButton, dashboardTabButton;
         
         // --- Tracker Page Elements ---
-        let totalExpenseEl, monthlyBreakdownEl, dailyBreakdownEl, expenseTableBody;
+        let totalExpenseEl, monthlyBreakdownEl, dailyBreakdownEl, expenseTableBody, allTimeTotalEl;
         let downloadDropdown, downloadPdfButton, downloadCsvButton;
+        
+        // --- NEW: Budget Elements ---
+        let budgetInput, budgetProgress, budgetSpentText, budgetRemainingText, budgetProgressBar;
         
         // --- Auth UI Elements ---
         let authModal, loginButton, logoutButton, userInfoDisplay, userIdDisplay;
@@ -114,13 +122,17 @@
 
         // --- Core UI Functions (Tracker Page) ---
         function updateSummaries(expenses) {
-            const total = expenses.reduce((sum, exp) => sum + (exp.price || 0), 0);
+            const allTimeTotal = expenses.reduce((sum, exp) => sum + (exp.price || 0), 0);
             const monthly = {};
             const daily = {};
 
+            const currentMonthISO = new Date().toISOString().slice(0, 7);
+            let currentMonthTotal = 0;
+
             expenses.forEach(exp => {
                 try {
-                    const date = new Date(exp.date);
+                    // Ensure date is treated as UTC
+                    const date = new Date(exp.date + 'T00:00:00Z');
                     if (isNaN(date.getTime())) return; 
 
                     const month = date.toISOString().slice(0, 7);
@@ -128,13 +140,55 @@
 
                     monthly[month] = (monthly[month] || 0) + exp.price;
                     daily[day] = (daily[day] || 0) + exp.price;
+                    
+                    if (month === currentMonthISO) {
+                        currentMonthTotal += exp.price;
+                    }
+
                 } catch (e) {
                     console.warn("Skipping expense with invalid date:", exp);
                 }
             });
+            
+            // --- NEW: Update "Current Month's Expenses" Card ---
+            totalExpenseEl.textContent = `₹${currentMonthTotal.toFixed(2)}`;
+            
+            // Clear existing color classes
+            totalExpenseEl.classList.remove('text-indigo-600', 'text-green-600', 'text-yellow-500', 'text-red-600');
+            
+            if (monthlyBudget > 0) {
+                const remaining = monthlyBudget - currentMonthTotal;
+                const percentage = Math.min((currentMonthTotal / monthlyBudget) * 100, 100);
+                
+                budgetSpentText.textContent = `Spent: ₹${currentMonthTotal.toFixed(2)}`;
+                budgetRemainingText.textContent = `Remaining: ₹${remaining.toFixed(2)}`;
+                budgetProgressBar.style.width = `${percentage}%`;
+                
+                // Set progress bar color
+                budgetProgressBar.classList.remove('bg-indigo-600', 'bg-green-600', 'bg-yellow-500', 'bg-red-600');
+                
+                if (percentage < 75) {
+                    totalExpenseEl.classList.add('text-green-600');
+                    budgetProgressBar.classList.add('bg-green-600');
+                } else if (percentage < 100) {
+                    totalExpenseEl.classList.add('text-yellow-500'); // Warning color
+                    budgetProgressBar.classList.add('bg-yellow-500');
+                } else {
+                    totalExpenseEl.classList.add('text-red-600'); // Over budget
+                    budgetProgressBar.classList.add('bg-red-600');
+                }
+                budgetProgress.classList.remove('hidden');
 
-            totalExpenseEl.textContent = `₹${total.toFixed(2)}`;
+            } else {
+                // No budget set
+                totalExpenseEl.classList.add('text-indigo-600'); // Default color
+                budgetProgress.classList.add('hidden'); // Hide progress bar
+            }
+            
+            // --- Update All-Time Total ---
+            allTimeTotalEl.textContent = `₹${allTimeTotal.toFixed(2)}`;
 
+            // --- Update Monthly Breakdown (Unchanged logic) ---
             monthlyBreakdownEl.innerHTML = '';
             const sortedMonths = Object.keys(monthly).sort().reverse();
              if (sortedMonths.length === 0) {
@@ -151,6 +205,7 @@
                 });
             }
 
+            // --- Update Daily Breakdown (Unchanged logic) ---
             dailyBreakdownEl.innerHTML = '';
             const sortedDays = Object.keys(daily).sort().reverse();
              if (sortedDays.length === 0) {
@@ -175,9 +230,10 @@
                 return;
             }
             
-            const sortedExpenses = expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Sorting is already handled by 'allExpenses' global var
+            // const sortedExpenses = expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            sortedExpenses.forEach(exp => {
+            expenses.forEach(exp => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
                 tr.innerHTML = `
@@ -338,6 +394,56 @@
             });
         }
         
+        // --- NEW: BUDGET FUNCTIONS ---
+        
+        function attachBudgetListener() {
+            if (budgetListenerUnsubscribe) {
+                budgetListenerUnsubscribe();
+            }
+            if (!userId) return;
+
+            const budgetDocPath = `artifacts/${appId}/users/${userId}/settings/budget`;
+            const budgetDocRef = doc(db, budgetDocPath);
+
+            budgetListenerUnsubscribe = onSnapshot(budgetDocRef, (doc) => {
+                if (doc.exists()) {
+                    monthlyBudget = doc.data().amount || 0;
+                    if (document.activeElement !== budgetInput) {
+                        budgetInput.value = monthlyBudget > 0 ? monthlyBudget : '';
+                    }
+                } else {
+                    console.log("No budget set for user.");
+                    monthlyBudget = 0;
+                }
+                // Once budget is loaded, re-update summaries
+                debouncedUpdateSummaries(allExpenses);
+            }, (error) => {
+                console.error("Budget listener error:", error);
+                showError("Could not load budget.");
+            });
+        }
+        
+        async function saveBudgetToFirestore(amount) {
+            if (!userId) return;
+            const budgetDocPath = `artifacts/${appId}/users/${userId}/settings/budget`;
+            const budgetDocRef = doc(db, budgetDocPath);
+            try {
+                await setDoc(budgetDocRef, { amount: amount });
+            } catch (error) {
+                console.error("Failed to save budget:", error);
+                showError("Failed to save budget.");
+            }
+        }
+        
+        const debouncedSaveBudget = debounce((e) => {
+            const amount = parseFloat(e.target.value) || 0;
+            monthlyBudget = amount; // Update global var immediately for UI
+            saveBudgetToFirestore(amount);
+            // Re-run summary logic to update colors/progress
+            debouncedUpdateSummaries(allExpenses); 
+        }, 1000); // Save 1 sec after user stops typing
+        
+
         // --- DASHBOARD FUNCTIONS ---
         
         const CHART_COLORS = [
@@ -350,7 +456,7 @@
             const months = new Set();
             expenses.forEach(exp => {
                 try {
-                    const date = new Date(exp.date);
+                    const date = new Date(exp.date + 'T00:00:00Z'); // Treat as UTC
                     if (isNaN(date.getTime())) return;
                     years.add(date.getFullYear().toString());
                     months.add(date.toISOString().slice(0, 7)); // YYYY-MM
@@ -875,9 +981,17 @@
             monthlyBreakdownEl = document.getElementById('monthly-breakdown');
             dailyBreakdownEl = document.getElementById('daily-breakdown');
             expenseTableBody = document.getElementById('expense-table-body');
+            allTimeTotalEl = document.getElementById('all-time-total'); // New
             downloadDropdown = document.getElementById('download-dropdown-button');
             downloadPdfButton = document.getElementById('download-pdf-button');
             downloadCsvButton = document.getElementById('download-csv-button');
+            
+            // Budget
+            budgetInput = document.getElementById('budget-input');
+            budgetProgress = document.getElementById('budget-progress');
+            budgetSpentText = document.getElementById('budget-spent-text');
+            budgetRemainingText = document.getElementById('budget-remaining-text');
+            budgetProgressBar = document.getElementById('budget-progress-bar');
             
             // Auth
             authModal = document.getElementById('auth-modal');
@@ -931,6 +1045,9 @@
             downloadDropdown.addEventListener('click', toggleDropdown);
             downloadPdfButton.addEventListener('click', generatePDF);
             downloadCsvButton.addEventListener('click', generateCSV);
+            
+            // Budget
+            budgetInput.addEventListener('input', debouncedSaveBudget);
             
             // Close dropdown if clicking outside
             window.addEventListener('click', (e) => {
@@ -1006,8 +1123,15 @@
                         expenseListenerUnsubscribe = null;
                         console.log("Detached old listener.");
                     }
+                    if (budgetListenerUnsubscribe) { // New
+                        budgetListenerUnsubscribe();
+                        budgetListenerUnsubscribe = null;
+                    }
                     
                     allExpenses = []; // Clear global expenses
+                    monthlyBudget = 0; // Clear budget
+                    if(budgetInput) budgetInput.value = '';
+                    
                     debouncedUpdateTable([]);
                     debouncedUpdateSummaries([]);
                     debouncedUpdateDashboard(allExpenses); // Clear dashboard
@@ -1023,6 +1147,7 @@
                         
                         console.log(`User authenticated: ${user.email}`);
                         attachExpenseListener();
+                        attachBudgetListener(); // New
                         
                     } else {
                         // User is signed out.
@@ -1253,15 +1378,44 @@
 
                 <!-- Column 1: Summaries (Order 2 on mobile, Order 1 on desktop) -->
                 <div class="lg:col-span-1 lg:order-1 space-y-6">
+                    
+                    <!-- NEW: Budget Card -->
                     <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Total Expenses</h2>
-                        <div id="total-expense" class="text-4xl font-bold text-indigo-600">
+                        <h2 class="text-lg font-semibold mb-4">Monthly Budget</h2>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">₹</span>
+                            <input type="number" id="budget-input" placeholder="Enter your budget" class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Your budget is saved automatically.</p>
+                    </div>
+                    
+                    <!-- UPDATED: Total Expenses Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h2 class="text-lg font-semibold mb-4">Current Month's Expenses</h2>
+                        <div id="total-expense" class="text-4xl font-bold text-indigo-600 transition-colors duration-300">
                             ₹0.00
+                        </div>
+                        <!-- NEW: Budget Progress Bar -->
+                        <div id="budget-progress" class="mt-4 hidden">
+                            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                <span id="budget-spent-text">Spent: ₹0.00</span>
+                                <span id="budget-remaining-text">Remaining: ₹0.00</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div id="budget-progress-bar" class="h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- UPDATED: Monthly Breakdown Card -->
                     <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Monthly Breakdown</h2>
+                        <div class="flex justify-between items-center mb-4">
+                             <h2 class="text-lg font-semibold">Monthly Breakdown</h2>
+                             <div class="text-right">
+                                <span class="text-xs text-gray-500">All-Time Total</span>
+                                <p id="all-time-total" class="text-lg font-semibold text-gray-800">₹0.00</p>
+                             </div>
+                        </div>
                         <div id="monthly-breakdown" class="breakdown-list space-y-2">
                             <p class="text-gray-500 text-sm">Log in for details.</p>
                         </div>
