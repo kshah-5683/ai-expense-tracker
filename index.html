@@ -188,17 +188,29 @@
             // --- Update All-Time Total ---
             allTimeTotalEl.textContent = `₹${allTimeTotal.toFixed(2)}`;
 
-            // --- Update Monthly Breakdown (Unchanged logic) ---
+            // --- Update Monthly Breakdown (Logic UPDATED for friendly dates) ---
             monthlyBreakdownEl.innerHTML = '';
             const sortedMonths = Object.keys(monthly).sort().reverse();
              if (sortedMonths.length === 0) {
                 monthlyBreakdownEl.innerHTML = '<p class="text-gray-500 text-sm">No monthly data yet.</p>';
             } else {
+                // NEW: Formatter for friendly month names
+                const monthFormattter = new Intl.DateTimeFormat('en-US', {
+                    month: 'long',
+                    year: 'numeric',
+                    timeZone: 'UTC'
+                });
+                
                 sortedMonths.forEach(month => {
                     const el = document.createElement('div');
                     el.className = "flex justify-between items-center py-2 border-b";
+                    
+                    // NEW: Format the date
+                    const dateObj = new Date(month + '-02T00:00:00Z');
+                    const formattedMonth = monthFormattter.format(dateObj);
+                    
                     el.innerHTML = `
-                        <span class="font-medium">${month}</span>
+                        <span class="font-medium">${formattedMonth}</span>
                         <span class="text-gray-700">₹${monthly[month].toFixed(2)}</span>
                     `;
                     monthlyBreakdownEl.appendChild(el);
