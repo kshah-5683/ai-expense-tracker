@@ -42,7 +42,7 @@ async function handleAnalyzeClick() {
         const expenses = await Data.analyzeTextWithAI(rawText, historyContext);
         
         if (!expenses || expenses.length === 0) {
-            throw new Error("The AI could not find any expenses in your notes.");
+            throw new Error("The AI could not find any financial transactions in your notes.");
         }
 
         // (Removed the old manual override loop here, it's no longer needed!)

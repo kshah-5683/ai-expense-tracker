@@ -12,20 +12,17 @@ export async function analyzeTextWithAI(rawText, knowledgeBase = "") {
 CONTEXT: Today's date is ${todayISO}.
 USER HISTORICAL MAPPINGS: ${knowledgeBase || "None available yet."}
 
-TASK: Extract entries from the text below following this STRICT PROCESS:
+TASK: Extract ALL financial transactions (both money in AND money out) from the text below:
 
-1. EXTRACT: Identify item name EXACTLY as listed by the user.
-2. DETERMINE TYPE: Classify as 'income' or 'expense'.
-   - Keywords like "salary", "sold", "+", "credit" -> 'income'.
-   - Default to 'expense'.
-3. CATEGORIZE BASED ON TYPE:
-   - IF INCOME: Use categories like 'Salary', 'Freelance', 'Sales', 'Refund'.
-   - IF EXPENSE (FOLLOW PRIORITY RULE):
-     a. CHECK USER HISTORICAL MAPPINGS FIRST.
-     b. If exact match exists, USE THAT CATEGORY.
-     c. If similar item exists (e.g., "Tea" similar to known "Coffee"), USE SAME CATEGORY.
-     d. Only use standard categories if NO past mapping is found.
-4. OUTPUT: JSON with fields: item (exact original text), category, price (positive number), date (ISO format), and type ('income' or 'expense').
+1. EXTRACT: Identify item name and numerical amount exactly as listed.
+2. DETERMINE TYPE:
+   - CRITICAL: If amount has a "+" prefix (e.g., "+500"), TYPE IS 'income'.
+   - Keywords "salary", "sold", "credit", "received", "won", "prize" -> 'income', "got" -> 'income'.
+   - Default to 'expense' if no income indicators are present.
+3. CATEGORIZE:
+   - IF INCOME: Default to 'Income' unless a very specific category is obvious (e.g., 'Salary').
+   - IF EXPENSE: Check HISTORICAL MAPPINGS first. If no match, use standard categories.
+4. OUTPUT: JSON with fields: item, category, price (numeric absolute value, e.g., "500" not "+500"), date (ISO format), and type ('income' or 'expense').
 
 USER TEXT TO PROCESS:
 ${rawText}
