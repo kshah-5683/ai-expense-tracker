@@ -201,7 +201,21 @@ function init() {
         try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
         catch (error) { UI.els.authError.textContent = error.message; }
     });
-
+    // Forgot Password
+    UI.els.forgotPasswordLink.addEventListener('click', async () => {
+        const email = UI.els.loginEmailInput.value.trim();
+        if (!email) {
+            UI.els.authError.textContent = "Please enter your email address first.";
+            return;
+        }
+        try {
+            await Auth.sendPasswordReset(email);
+            alert(`Password reset email sent to ${email}. Check your inbox.`);
+        } catch (error) {
+            console.error("Reset failed:", error);
+            UI.els.authError.textContent = error.message;
+        }
+    });
     // Edit Modal Events
     UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
     UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));

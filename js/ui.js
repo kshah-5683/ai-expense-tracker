@@ -50,6 +50,8 @@ export const els = {
     userInfoDisplay: document.getElementById('user-info-display'),
     userIdDisplay: document.getElementById('user-id-display'),
     logoutBtn: document.getElementById('logout-button'),
+    forgotPasswordLink: document.getElementById('forgot-password-link'),
+    loginEmailInput: document.getElementById('login-email'),
 
     // Modals
     authModal: document.getElementById('auth-modal'),
