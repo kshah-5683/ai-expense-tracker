@@ -1,10 +1,11 @@
+/* =========================
+   CORE STYLES & RESETS 
+   ========================= */
 .breakdown-list { max-height: 250px; overflow-y: auto; }
 .breakdown-list::-webkit-scrollbar { width: 6px; }
-.breakdown-list::-webkit-scrollbar-track { background: #f1f5f9; }
+.breakdown-list::-webkit-scrollbar-track { background: transparent; }
 .breakdown-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-.breakdown-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Ensure charts are responsive and centered */
 .chart-container {
     position: relative;
     height: 400px;
@@ -14,45 +15,96 @@
     align-items: center;
 }
 
-/* New style for scrollable table */
 .table-container {
-    max-height: 600px; /* Adjust as needed */
+    max-height: 600px;
     overflow-y: auto;
 }
-/* Sticky header for scrollable table */
 .table-container thead th {
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: #f9fafb; /* Matches bg-gray-50 */
 }
 
-/* --- DARK MODE OVERRIDES --- */
-html.dark body { background-color: #111827; color: #f3f4f6; }
-html.dark .bg-white { background-color: #1f2937; color: #f3f4f6; }
-html.dark .bg-gray-50, html.dark .bg-gray-100 { background-color: #111827; color: #e5e7eb; }
-html.dark .bg-gray-200 { background-color: #374151; } /* Progress bar bg */
+/* =========================
+   THEME: RETRO FUTURE
+   ========================= */
 
-/* Text Colors */
-html.dark .text-gray-800, html.dark .text-gray-900 { color: #f9fafb; }
-html.dark .text-gray-700 { color: #d1d5db; }
-html.dark .text-gray-600 { color: #9ca3af; }
-html.dark .text-gray-500 { color: #9ca3af; }
-html.dark .text-indigo-700 { color: #818cf8; }
+/* --- CSS VARIABLES --- */
+:root {
+    /* Core Brand - Teal from Retro Sunset */
+    --primary: #069494;
+    --primary-hover: #057676;
+    
+    /* Light Mode Bases */
+    --bg-main: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --border-color: #E2E8F0;
+}
 
-/* Borders & Inputs */
-html.dark .border-gray-200, html.dark .border-gray-300 { border-color: #374151; }
+html.dark {
+    /* Dark Mode Bases - Deep Space Purple inspired by Space Berries */
+    --bg-main: #1A1625; 
+    --bg-card: #2D283E;
+    --text-main: #EEEFFC;
+    --text-muted: #A39EBB;
+    --border-color: #3F3B52;
+    
+    /* Brighten primary for dark mode contrast */
+    --primary: #2DD4BF; 
+    --primary-hover: #14B8A6;
+}
+
+/* --- GLOBAL OVERRIDES --- */
+body { background-color: var(--bg-main); color: var(--text-main); }
+
+/* Override standard Tailwind utility classes with our theme variables */
+.bg-white { background-color: var(--bg-card) !important; color: var(--text-main) !important; }
+.bg-gray-50 { background-color: var(--bg-main) !important; }
+.bg-gray-100 { background-color: var(--bg-main) !important; }
+
+/* Text Color Overrides */
+.text-gray-500, .text-gray-600, .text-gray-700 { color: var(--text-muted) !important; }
+.text-gray-800, .text-gray-900 { color: var(--text-main) !important; }
+
+/* Border Overrides */
+.border-gray-200, .border-gray-300 { border-color: var(--border-color) !important; }
+.divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-color) !important; }
+
+/* PRIMARY BRAND COLOR OVERRIDES (Replaces Indigo) */
+.bg-indigo-600 { background-color: var(--primary) !important; }
+.hover\:bg-indigo-700:hover { background-color: var(--primary-hover) !important; }
+.text-indigo-600 { color: var(--primary) !important; }
+.border-indigo-500 { border-color: var(--primary) !important; }
+.focus\:ring-indigo-500:focus { --tw-ring-color: var(--primary) !important; }
+
+/* DARK MODE SPECIFIC ADJUSTMENTS */
+html.dark .bg-gray-200 { background-color: #3F3B52 !important; } /* Progress bar background */
+html.dark .table-container thead th { background-color: #252138 !important; color: var(--text-main); }
+html.dark .hover\:bg-gray-50:hover { background-color: #353049 !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: #353049 !important; }
+
+/* Form Elements in Dark Mode */
 html.dark input, html.dark textarea, html.dark select {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #f3f4f6;
+    background-color: #1A1625 !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
 }
-html.dark input::placeholder, html.dark textarea::placeholder { color: #9ca3af; }
 
-/* Interactive Elements */
-html.dark .hover\:bg-gray-50:hover { background-color: #374151 !important; }
-html.dark .hover\:bg-gray-100:hover { background-color: #374151 !important; }
-html.dark .table-container thead th { background-color: #374151; color: #e5e7eb; }
-html.dark #download-menu { background-color: #1f2937; border-color: #374151; }
-html.dark .breakdown-list::-webkit-scrollbar-track { background: #111827; }
-html.dark .breakdown-list::-webkit-scrollbar-thumb { background: #4b5563; }
+/* Scrollbars for Dark Mode */
+html.dark ::-webkit-scrollbar-thumb { background: #4B4663; }
+html.dark ::-webkit-scrollbar-track { background: var(--bg-main); }
+
+/* --- SPECIFIC COMPONENT OVERRIDES --- */
+
+/* Fix for "washed out" total in dark mode: force it to use the darker teal */
+html.dark #dashboard-total-expense {
+    color: #069494 !important; /* Uses the darker Light Mode primary color */
+}
+
+/* Ensure the container for the total is visible in dark mode if it uses bg-indigo-50 */
+html.dark .bg-indigo-50 {
+    background-color: #EEEFFC !important; /* Very light lavender for contrast in dark mode */
+    color: #1E293B !important;
+}
