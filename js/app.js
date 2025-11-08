@@ -140,7 +140,9 @@ function clearApplicationState() {
 
 // --- Main Entry Point ---
 function init() {
+    UI.initTheme();
     // 1. Attach Global Event Listeners
+    UI.els.themeToggleBtn.addEventListener('click', UI.toggleTheme);
     UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
     UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
     UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
