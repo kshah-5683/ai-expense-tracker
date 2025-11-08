@@ -45,7 +45,12 @@ async function handleAnalyzeClick() {
             throw new Error("The AI could not find any financial transactions in your notes.");
         }
 
-        // (Removed the old manual override loop here, it's no longer needed!)
+        // Ensure consistency: If category is 'Income', force type to be 'income'
+        expenses.forEach(exp => {
+            if (exp.category && exp.category.toLowerCase() === 'income') {
+                exp.type = 'income';
+            }
+        });
 
         const savePromises = expenses.map(exp => Data.addExpense(state.currentUser.uid, exp));
         await Promise.all(savePromises);
@@ -220,9 +225,17 @@ function init() {
         e.preventDefault();
         if (!state.currentUser) return;
         
+        const categoryVal = UI.els.editCategory.value.trim();
+        let typeVal = UI.els.editType.value;
+
+        // AUTO-CORRECT: If category is 'Income', force type to 'income'
+        if (categoryVal.toLowerCase() === 'income') {
+            typeVal = 'income';
+        }
+        
         const updatedData = {
             date: UI.els.editDate.value,
-            type: UI.els.editType.value,
+            type: typeVal,
             item: UI.els.editItem.value,
             category: UI.els.editCategory.value,
             price: parseFloat(UI.els.editPrice.value) || 0
