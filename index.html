@@ -293,14 +293,21 @@
                         <canvas id="category-pie-chart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
                     <h3 id="trend-chart-title" class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
                         Monthly Expense Trend
                     </h3>
-                    <div class="overflow-x-auto w-full">
-                        <div class="chart-container" id="trend-chart-area">
-                            <canvas id="trend-bar-chart"></canvas>
-                        </div>       
+
+                    <div class="relative">
+                        <div class="absolute top-0 left-0 h-full w-[50px] z-20 bg-white dark:bg-gray-800 pointer-events-none">
+                            <canvas id="trend-yaxis-overlay"></canvas>
+                        </div>
+
+                        <div class="overflow-x-auto w-full ml-[50px] pr-[50px]"> 
+                            <div class="chart-container" id="trend-chart-area">
+                                <canvas id="trend-bar-chart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@ import { monthFormatter } from "./utils.js";
 // Global chart instances to allow destroying and redrawing
 let categoryPieChart = null;
 let trendBarChart = null;
+let trendYAxisChart = null;
 
 const CHART_COLORS = [
     '#069494', // Teal (Primary)
@@ -140,49 +141,86 @@ function renderPieChart(filteredExpenses) {
 }
 
 function renderTrendChart(filteredExpenses, selectedMonth) {
-    const ctx = document.getElementById('trend-bar-chart').getContext('2d');
+    const mainCtx = document.getElementById('trend-bar-chart').getContext('2d');
+    const axisCtx = document.getElementById('trend-yaxis-overlay').getContext('2d');
     const chartArea = document.getElementById('trend-chart-area');
 
-    // --- 1. Update Static HTML Title ---
-    const titleEl = document.getElementById('trend-chart-title');
-    if (titleEl) {
-        titleEl.textContent = selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend';
-    }
+    // 1. Update Title
+    document.getElementById('trend-chart-title').textContent = 
+        selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend';
 
-    // --- 2. Process Data ---
+    // 2. Process Data
     const trendData = {};
     filteredExpenses.forEach(exp => {
          const key = (selectedMonth !== 'all') ? exp.date : exp.date.slice(0, 7);
          trendData[key] = (trendData[key] || 0) + exp.price;
     });
-
     const sortedTrend = Object.entries(trendData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
-    const dataPoints = sortedTrend.length;
+    const labels = sortedTrend.map(e => e[0]);
+    const dataValues = sortedTrend.map(e => e[1]);
 
-    // --- 3. Responsive Scroll Logic ---
+    // 3. Calculate common Y-axis Max to sync both charts
+    const maxValue = Math.max(...dataValues, 0);
+    // Add 10% headroom so bars don't hit the very top
+    const suggestedMax = maxValue * 1.1;
+
+    // 4. Responsive Scroll Logic (Width Calculation)
     const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
     if (isSmallScreen) {
+        const dataPoints = labels.length;
         const visibleWidth = chartArea.parentElement.clientWidth;
         let requiredWidth = visibleWidth;
-        if (selectedMonth === 'all') {
-            if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
-        } else {
-            if (dataPoints > 7) requiredWidth = (visibleWidth / 7) * dataPoints;
-        }
+        // Show max 6 items at a time on small screens
+        if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
         chartArea.style.width = `${requiredWidth}px`;
     } else {
         chartArea.style.width = '100%';
     }
 
-    // --- 4. Render Chart ---
+    // Shared config to ensure perfect alignment between Overlay and Main chart
+    const commonLayout = { padding: { top: 10, bottom: 10, left: 0, right: 0 } };
+    const themeTextColor = getThemeTextColor();
+    const themeGridColor = document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0';
+
+    // --- RENDER 1: FIXED Y-AXIS OVERLAY ---
+    if (trendYAxisChart) trendYAxisChart.destroy();
+    trendYAxisChart = new Chart(axisCtx, {
+        type: 'bar',
+        data: { labels: [], datasets: [] }, // No data, just scales
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: commonLayout,
+            plugins: { legend: { display: false }, title: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { display: false }, // Hide X axis on overlay
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: suggestedMax, // Sync max value
+                    afterFit: (scale) => { scale.width = 50; }, // Force exact width to match HTML
+                    ticks: { 
+                        color: themeTextColor,
+                        maxTicksLimit: 6, // Limit ticks to prevent crowding 
+                        callback: function(value) {
+                             // Compact number formatting (e.g., 1k, 1.5k)
+                             if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+                             return value;
+                        }
+                    },
+                    grid: { drawBorder: false, display: false } // Hide grid on overlay for cleaner look
+                }
+            }
+        }
+    });
+
+    // --- RENDER 2: MAIN SCROLLABLE CHART ---
     if (trendBarChart) trendBarChart.destroy();
-    trendBarChart = new Chart(ctx, {
+    trendBarChart = new Chart(mainCtx, {
         type: 'bar',
         data: {
-            labels: sortedTrend.map(e => e[0]),
+            labels: labels,
             datasets: [{
-                label: 'Expenses Over Time',
-                data: sortedTrend.map(e => e[1]),
+                data: dataValues,
                 backgroundColor: '#069494',
                 borderRadius: 4,
             }]
@@ -190,34 +228,18 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { left: 0, right: 10, top: 0, bottom: 0 } // Add slight right padding so last label isn't cut off
-            },
-            plugins: {
-                legend: { display: false },
-                // TITLE REMOVED from here, now handled by HTML above
-            },
+            layout: commonLayout,
+            plugins: { legend: { display: false }, title: { display: false } },
             scales: {
                 x: {
-                    type: 'time',
-                    time: {
-                        unit: selectedMonth !== 'all' ? 'day' : 'month',
-                        tooltipFormat: selectedMonth !== 'all' ? 'yyyy-MM-dd' : 'yyyy-MM'
-                    },
-                    title: { display: true, text: 'Date', color: getThemeTextColor() },
-                    ticks: {
-                        color: getThemeTextColor(),
-                        autoSkip: false,
-                        maxRotation: 45,
-                        minRotation: 0
-                    },
+                    ticks: { color: themeTextColor, maxRotation: 45, autoSkip: false },
                     grid: { display: false }
                 },
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Amount (₹)', color: getThemeTextColor() },
-                    ticks: { color: getThemeTextColor() },
-                    grid: { color: document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0' }
+                    suggestedMax: suggestedMax, // Sync max value
+                    display: false, // HIDE Y-axis labels (handled by overlay)
+                    grid: { color: themeGridColor, drawBorder: false } // Keep horizontal grid lines
                 }
             }
         }
