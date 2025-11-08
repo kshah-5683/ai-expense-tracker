@@ -146,8 +146,10 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
     const chartArea = document.getElementById('trend-chart-area');
 
     // 1. Update Title
-    document.getElementById('trend-chart-title').textContent = 
-        selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend';
+    const titleEl = document.getElementById('trend-chart-title');
+    if (titleEl) {
+        titleEl.textContent = selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend';
+    }
 
     // 2. Process Data
     const trendData = {};
@@ -159,25 +161,27 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
     const labels = sortedTrend.map(e => e[0]);
     const dataValues = sortedTrend.map(e => e[1]);
 
-    // 3. Calculate common Y-axis Max to sync both charts
+    // 3. Calculate common Y-axis Max
     const maxValue = Math.max(...dataValues, 0);
-    // Add 10% headroom so bars don't hit the very top
-    const suggestedMax = maxValue * 1.1;
+    const suggestedMax = maxValue * 1.1; // 10% headroom
 
-    // 4. Responsive Scroll Logic (Width Calculation)
+    // 4. Responsive Scroll Logic
     const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
     if (isSmallScreen) {
         const dataPoints = labels.length;
         const visibleWidth = chartArea.parentElement.clientWidth;
         let requiredWidth = visibleWidth;
-        // Show max 6 items at a time on small screens
-        if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
+        if (selectedMonth === 'all') {
+            if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
+        } else {
+            if (dataPoints > 7) requiredWidth = (visibleWidth / 7) * dataPoints;
+        }
         chartArea.style.width = `${requiredWidth}px`;
     } else {
         chartArea.style.width = '100%';
     }
 
-    // Shared config to ensure perfect alignment between Overlay and Main chart
+    // Shared config
     const commonLayout = { padding: { top: 10, bottom: 10, left: 0, right: 0 } };
     const themeTextColor = getThemeTextColor();
     const themeGridColor = document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0';
@@ -186,28 +190,34 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
     if (trendYAxisChart) trendYAxisChart.destroy();
     trendYAxisChart = new Chart(axisCtx, {
         type: 'bar',
-        data: { labels: [], datasets: [] }, // No data, just scales
+        data: { labels: [], datasets: [] },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             layout: commonLayout,
             plugins: { legend: { display: false }, title: { display: false }, tooltip: { enabled: false } },
             scales: {
-                x: { display: false }, // Hide X axis on overlay
+                x: { display: false },
                 y: {
                     beginAtZero: true,
-                    suggestedMax: suggestedMax, // Sync max value
-                    afterFit: (scale) => { scale.width = 50; }, // Force exact width to match HTML
+                    suggestedMax: suggestedMax,
+                    afterFit: (scale) => { scale.width = 50; },
                     ticks: { 
                         color: themeTextColor,
-                        maxTicksLimit: 6, // Limit ticks to prevent crowding 
+                        maxTicksLimit: 6,
                         callback: function(value) {
-                             // Compact number formatting (e.g., 1k, 1.5k)
                              if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
                              return value;
                         }
                     },
-                    grid: { drawBorder: false, display: false } // Hide grid on overlay for cleaner look
+                    grid: { drawBorder: false, display: false },
+                    // ADDED: Y-Axis Title
+                    title: { 
+                        display: true, 
+                        text: 'Amount (₹)', 
+                        color: themeTextColor,
+                        font: { size: 10 } // Kept small to fit in the overlay
+                    }
                 }
             }
         }
@@ -232,14 +242,29 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
             plugins: { legend: { display: false }, title: { display: false } },
             scales: {
                 x: {
-                    ticks: { color: themeTextColor, maxRotation: 45, autoSkip: false },
+                    type: 'time',
+                    time: {
+                        unit: selectedMonth !== 'all' ? 'day' : 'month',
+                        tooltipFormat: 'PP',
+                        // ADDED: Friendly date formats
+                        displayFormats: {
+                            month: 'MMM yyyy', // e.g., Nov 2025
+                            day: 'dd MMM'      // e.g., 08 Nov
+                        }
+                    },
+                    ticks: {
+                        color: themeTextColor,
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 0
+                    },
                     grid: { display: false }
                 },
                 y: {
                     beginAtZero: true,
-                    suggestedMax: suggestedMax, // Sync max value
-                    display: false, // HIDE Y-axis labels (handled by overlay)
-                    grid: { color: themeGridColor, drawBorder: false } // Keep horizontal grid lines
+                    suggestedMax: suggestedMax,
+                    display: false, // Hide Y labels here (they are in the overlay)
+                    grid: { color: themeGridColor, drawBorder: false }
                 }
             }
         }
