@@ -239,7 +239,9 @@ export function renderExpenseTable(expenses) {
     });
 }
 
-export function renderSummaries(expenses, monthlyBudget) {
+// In js/ui.js
+
+export function renderSummaries(allEntries, monthlyBudget) {
     const currentMonthISO = new Date().toISOString().slice(0, 7);
     let currentMonthIncome = 0;
     let currentMonthExpense = 0;
@@ -249,11 +251,19 @@ export function renderSummaries(expenses, monthlyBudget) {
     const monthlyMap = {};
     const dailyMap = {};
 
-    expenses.forEach(exp => {
-        const price = exp.price || 0;
+    allEntries.forEach(exp => {
+        // SAFETY CHECK: Skip entries with missing data to prevent crashes
+        if (!exp.date || typeof exp.price !== 'number') return;
+
+        const price = exp.price;
         const isIncome = exp.type === 'income';
-        const monthKey = exp.date.slice(0, 7);
-        const dayKey = exp.date.slice(0, 10);
+        
+        // Safe date extraction
+        let monthKey, dayKey;
+        try {
+             monthKey = exp.date.slice(0, 7);
+             dayKey = exp.date.slice(0, 10);
+        } catch (e) { return; } // Skip if date format is totally wrong
 
         if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { income: 0, expense: 0 };
         if (!dailyMap[dayKey]) dailyMap[dayKey] = { income: 0, expense: 0 };
@@ -271,19 +281,23 @@ export function renderSummaries(expenses, monthlyBudget) {
         }
     });
 
-    // Update UI
+    // Update UI (with safety checks for existence of elements)
     if (els.incomeDisplay) els.incomeDisplay.textContent = `+₹${currentMonthIncome.toFixed(2)}`;
     if (els.expenseDisplay) els.expenseDisplay.textContent = `-₹${currentMonthExpense.toFixed(2)}`;
 
-    const netBalance = currentMonthIncome - currentMonthExpense;
-    els.totalExpense.textContent = `₹${netBalance.toFixed(2)}`;
-    els.totalExpense.className = 'text-4xl font-bold transition-colors duration-300 ' + 
-        (netBalance >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
+    if (els.totalExpense) {
+        const netBalance = currentMonthIncome - currentMonthExpense;
+        els.totalExpense.textContent = `₹${netBalance.toFixed(2)}`;
+        els.totalExpense.className = 'text-4xl font-bold transition-colors duration-300 ' + 
+            (netBalance >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
+    }
 
-    const allTimeNet = allTimeIncome - allTimeExpense;
-    els.allTimeTotal.textContent = `₹${allTimeNet.toFixed(2)}`;
-    els.allTimeTotal.className = 'text-lg font-semibold ' + 
-        (allTimeNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
+    if (els.allTimeTotal) {
+        const allTimeNet = allTimeIncome - allTimeExpense;
+        els.allTimeTotal.textContent = `₹${allTimeNet.toFixed(2)}`;
+        els.allTimeTotal.className = 'text-lg font-semibold ' + 
+            (allTimeNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
+    }
 
     updateBudgetUI(currentMonthExpense, monthlyBudget);
     renderBreakdownList(els.monthlyBreakdown, monthlyMap, monthFormatter);
