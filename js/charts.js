@@ -128,13 +128,6 @@ function renderPieChart(filteredExpenses) {
                         color: getThemeTextColor()
                     }
                 },
-                title: { 
-                    display: true, 
-                    text: 'Category Breakdown',
-                    color: getThemeTextColor(),
-                    font: { size: 16}
-
-                 }
             }
         }
     });
