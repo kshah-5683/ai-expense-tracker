@@ -95,3 +95,16 @@ html.dark input, html.dark textarea, html.dark select {
 /* Scrollbars for Dark Mode */
 html.dark ::-webkit-scrollbar-thumb { background: #4B4663; }
 html.dark ::-webkit-scrollbar-track { background: var(--bg-main); }
+
+/* --- SPECIFIC COMPONENT OVERRIDES --- */
+
+/* Fix for "washed out" total in dark mode: force it to use the darker teal */
+html.dark #dashboard-total-expense {
+    color: #069494 !important; /* Uses the darker Light Mode primary color */
+}
+
+/* Ensure the container for the total is visible in dark mode if it uses bg-indigo-50 */
+html.dark .bg-indigo-50 {
+    background-color: #EEEFFC !important; /* Very light lavender for contrast in dark mode */
+    color: #1E293B !important;
+}

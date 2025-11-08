@@ -134,7 +134,12 @@ function clearApplicationState() {
 function init() {
     UI.initTheme();
     // 1. Attach Global Event Listeners
-    UI.els.themeToggleBtn.addEventListener('click', UI.toggleTheme);
+    // NEW: Toggle theme AND refresh charts to apply new text colors
+    UI.els.themeToggleBtn.addEventListener('click', () => {
+        UI.toggleTheme();
+        // Force charts to re-render with new theme colors
+        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, UI.els.monthFilter.value);
+    });
     UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
     UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
     UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
