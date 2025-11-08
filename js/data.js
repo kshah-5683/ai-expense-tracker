@@ -12,16 +12,20 @@ export async function analyzeTextWithAI(rawText, knowledgeBase = "") {
 CONTEXT: Today's date is ${todayISO}.
 USER HISTORICAL MAPPINGS: ${knowledgeBase || "None available yet."}
 
-TASK: Extract expenses from the text below following this STRICT PROCESS:
+TASK: Extract entries from the text below following this STRICT PROCESS:
 
-1. EXTRACT: Identify item name EXACTLY as entered.
-2. NORMALIZE: Fix typos (internal use only).
-3. CATEGORIZE (PRIORITY RULE): 
-   - Check USER HISTORICAL MAPPINGS first. 
-   - If an exact match exists, USE THAT CATEGORY.
-   - If a *similar* item exists in mappings, USE THAT SAME CATEGORY (e.g., if history has "Coffee":"Fuel", then categorized new entry "Tea" as "Fuel" too).
-   - Only use standard categories if NO relevant past mapping is found.
-4. OUTPUT: JSON with exact item name and assigned category.
+1. EXTRACT: Identify item name EXACTLY as listed by the user.
+2. DETERMINE TYPE: Classify as 'income' or 'expense'.
+   - Keywords like "salary", "sold", "+", "credit" -> 'income'.
+   - Default to 'expense'.
+3. CATEGORIZE BASED ON TYPE:
+   - IF INCOME: Use categories like 'Salary', 'Freelance', 'Sales', 'Refund'.
+   - IF EXPENSE (FOLLOW PRIORITY RULE):
+     a. CHECK USER HISTORICAL MAPPINGS FIRST.
+     b. If exact match exists, USE THAT CATEGORY.
+     c. If similar item exists (e.g., "Tea" similar to known "Coffee"), USE SAME CATEGORY.
+     d. Only use standard categories if NO past mapping is found.
+4. OUTPUT: JSON with fields: item (exact original text), category, price (positive number), date (ISO format), and type ('income' or 'expense').
 
 USER TEXT TO PROCESS:
 ${rawText}
