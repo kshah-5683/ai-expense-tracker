@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Expense Tracker</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -13,295 +13,746 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
 
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal h-full">
-
-    <div id="auth-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b p-4">
-                <h2 class="text-xl font-semibold">Login or Register</h2>
-                <button id="close-modal-button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-            </div>
-            <div class="border-b border-gray-200">
-                <nav id="auth-tabs" class="-mb-px flex" aria-label="Tabs">
-                    <button id="login-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">Login</button>
-                    <button id="register-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Register</button>
-                </nav>
-            </div>
-            <div class="p-6">
-                <p id="auth-error" class="text-sm text-red-600 text-center empty:mb-0 mb-4"></p>
-                <form id="login-form" class="space-y-4">
-                    <div>
-                        <label for="login-email" class="block text-sm font-medium text-gray-700">Email address</label>
-                        <input type="email" name="email" id="login-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
-                        <input type="password" name="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div class="flex items-center justify-end">
-                        <button type="button" id="forgot-password-link" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                            Forgot your password?
-                        </button>
-                    </div>
-                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Login</button>
-                </form>
-                <form id="register-form" class="space-y-4 hidden">
-                    <div>
-                        <label for="register-email" class="block text-sm font-medium text-gray-700">Email address</label>
-                        <input type="email" name="email" id="register-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="register-password" class="block text-sm font-medium text-gray-700">Password</label>
-                        <input type="password" name="password" id="register-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div class="flex items-center justify-end invisible" aria-hidden="true">
-                        <button type="button" class="text-sm font-medium">
-                            Forgot your password?
-                        </button>
-                    </div>
-                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Create Account</button>
-                </form>
-            </div>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="bg-gray-100 font-sans leading-normal tracking-normal h-full">
+    <div
+      id="auth-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-xl font-semibold">Login or Register</h2>
+          <button
+            id="close-modal-button"
+            class="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+          >
+            &times;
+          </button>
         </div>
+        <div class="border-b border-gray-200">
+          <nav id="auth-tabs" class="-mb-px flex" aria-label="Tabs">
+            <button
+              id="login-tab"
+              class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-indigo-500 text-indigo-600"
+            >
+              Login
+            </button>
+            <button
+              id="register-tab"
+              class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            >
+              Register
+            </button>
+          </nav>
+        </div>
+        <div class="p-6">
+          <p
+            id="auth-error"
+            class="text-sm text-red-600 text-center empty:mb-0 mb-4"
+          ></p>
+          <form id="login-form" class="space-y-4">
+            <div>
+              <label
+                for="login-email"
+                class="block text-sm font-medium text-gray-700"
+                >Email address</label
+              >
+              <input
+                type="email"
+                name="email"
+                id="login-email"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label
+                for="login-password"
+                class="block text-sm font-medium text-gray-700"
+                >Password</label
+              >
+              <input
+                type="password"
+                name="password"
+                id="login-password"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div class="flex items-center justify-end">
+              <button
+                type="button"
+                id="forgot-password-link"
+                class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+              >
+                Forgot your password?
+              </button>
+            </div>
+            <button
+              type="submit"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Login
+            </button>
+          </form>
+          <form id="register-form" class="space-y-4 hidden">
+            <div>
+              <label
+                for="register-email"
+                class="block text-sm font-medium text-gray-700"
+                >Email address</label
+              >
+              <input
+                type="email"
+                name="email"
+                id="register-email"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label
+                for="register-password"
+                class="block text-sm font-medium text-gray-700"
+                >Password</label
+              >
+              <input
+                type="password"
+                name="password"
+                id="register-password"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div
+              class="flex items-center justify-end invisible"
+              aria-hidden="true"
+            >
+              <button type="button" class="text-sm font-medium">
+                Forgot your password?
+              </button>
+            </div>
+            <button
+              type="submit"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Create Account
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
 
-    <div id="edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b p-4">
-                <h2 class="text-xl font-semibold">Edit Expense</h2>
-                <button id="close-edit-modal-button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-            </div>
-            <div class="p-6">
-                <form id="edit-form" class="space-y-4">
-                    <input type="hidden" id="edit-expense-id">
-                    <div>
-                        <label for="edit-date" class="block text-sm font-medium text-gray-700">Date</label>
-                        <input type="date" name="date" id="edit-date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="edit-item" class="block text-sm font-medium text-gray-700">Item</label>
-                        <input type="text" name="item" id="edit-item" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="edit-category" class="block text-sm font-medium text-gray-700">Category</label>
-                        <input type="text" name="category" id="edit-category" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="edit-price" class="block text-sm font-medium text-gray-700">Price</label>
-                        <input type="number" name="price" id="edit-price" step="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div class="pt-4 flex justify-end space-x-3">
-                        <button type="button" id="cancel-edit-button" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Cancel</button>
-                        <button type="submit" class="w-full sm:w-auto flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Save Changes</button>
-                    </div>
-                </form>
-            </div>
+    <div
+      id="edit-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-xl font-semibold">Edit Expense</h2>
+          <button
+            id="close-edit-modal-button"
+            class="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+          >
+            &times;
+          </button>
         </div>
+        <div class="p-6">
+          <form id="edit-form" class="space-y-4">
+            <input type="hidden" id="edit-expense-id" />
+            <div>
+              <label
+                for="edit-date"
+                class="block text-sm font-medium text-gray-700"
+                >Date</label
+              >
+              <input
+                type="date"
+                name="date"
+                id="edit-date"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label
+                for="edit-item"
+                class="block text-sm font-medium text-gray-700"
+                >Item</label
+              >
+              <input
+                type="text"
+                name="item"
+                id="edit-item"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label
+                for="edit-category"
+                class="block text-sm font-medium text-gray-700"
+                >Category</label
+              >
+              <input
+                type="text"
+                name="category"
+                id="edit-category"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label
+                for="edit-price"
+                class="block text-sm font-medium text-gray-700"
+                >Price</label
+              >
+              <input
+                type="number"
+                name="price"
+                id="edit-price"
+                step="0.01"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div class="pt-4 flex justify-end space-x-3">
+              <button
+                type="button"
+                id="cancel-edit-button"
+                class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="w-full sm:w-auto flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
-    <div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b p-4">
-                <h2 class="text-xl font-semibold text-gray-800">Confirm Deletion</h2>
-                <button id="close-delete-modal-button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-            </div>
-            <div class="p-6">
-                <div class="flex items-start space-x-4">
-                    <div class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:h-10 sm:w-10">
-                        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p id="delete-modal-text" class="text-sm text-gray-600">Are you sure you want to delete this expense? This action cannot be undone.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
-                <button id="delete-confirm-button" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">Delete</button>
-                <button id="delete-cancel-button" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">Cancel</button>
-            </div>
+    <div
+      id="delete-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-xl font-semibold text-gray-800">Confirm Deletion</h2>
+          <button
+            id="close-delete-modal-button"
+            class="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+          >
+            &times;
+          </button>
         </div>
+        <div class="p-6">
+          <div class="flex items-start space-x-4">
+            <div
+              class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:h-10 sm:w-10"
+            >
+              <svg
+                class="h-6 w-6 text-red-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p id="delete-modal-text" class="text-sm text-gray-600">
+                Are you sure you want to delete this expense? This action cannot
+                be undone.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg"
+        >
+          <button
+            id="delete-confirm-button"
+            type="button"
+            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Delete
+          </button>
+          <button
+            id="delete-cancel-button"
+            type="button"
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <header class="mb-6 flex justify-between items-center">
-            <h1 class="text-3xl font-bold text-gray-800">AI Expense Tracker</h1>
-            <div class="flex items-center space-x-4">
-                <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5 mr-2">
-                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-                </button>
+      <header
+        class="mb-8 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0"
+      >
+        <h1 class="text-3xl font-bold text-gray-800">AI Expense Tracker</h1>
+        <div class="flex items-center space-x-4">
+          <button
+            id="theme-toggle"
+            type="button"
+            class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5 mr-2"
+          >
+            <svg
+              id="theme-toggle-dark-icon"
+              class="hidden w-5 h-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"
+              ></path>
+            </svg>
+            <svg
+              id="theme-toggle-light-icon"
+              class="hidden w-5 h-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+              ></path>
+            </svg>
+          </button>
 
-                <div>
-                    <button id="login-button" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">Login</button>
-                        <div id="user-info-display" class="hidden flex items-center space-x-4">
-                            <span id="user-id-display" class="text-sm text-gray-600 bg-white py-1 px-3 rounded-full shadow-sm">...</span>
-                            <button id="logout-button" class="text-sm text-gray-500 hover:text-indigo-600">Logout</button>
-                        </div>
-                    </div>
+          <div>
+            <button
+              id="login-button"
+              class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out"
+            >
+              Login
+            </button>
+            <div
+              id="user-info-display"
+              class="hidden flex items-center space-x-4"
+            >
+              <span
+                id="user-id-display"
+                class="text-sm text-gray-600 bg-white py-1 px-3 rounded-full shadow-sm"
+                >...</span
+              >
+              <button
+                id="logout-button"
+                class="text-sm text-gray-500 hover:text-indigo-600"
+              >
+                Logout
+              </button>
             </div>
-        </header>
-
-        <div id="error-indicator" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 shadow-md" role="alert">
-            <strong class="font-bold">Error:</strong>
-            <span id="error-message" class="block sm:inline">Something went wrong.</span>
-            <span id="close-error-button" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
-                <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
-            </span>
+          </div>
         </div>
+      </header>
 
-        <div class="border-b border-gray-200 mb-6">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button id="tracker-tab-button" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">Tracker</button>
-                <button id="dashboard-tab-button" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Dashboard</button>
-            </nav>
-        </div>
-        
-        <div id="main-tracker-view">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 lg:order-1 space-y-6">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Monthly Budget</h2>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">₹</span>
-                            <input type="number" id="budget-input" placeholder="Enter your budget" class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">Your budget is saved automatically.</p>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Current Month's Expenses</h2>
-                        <div id="total-expense" class="text-4xl font-bold text-indigo-600 transition-colors duration-300">₹0.00</div>
-                        <div id="budget-progress" class="mt-4 hidden">
-                            <div class="flex justify-between text-sm text-gray-600 mb-1">
-                                <span id="budget-spent-text">Spent: ₹0.00</span>
-                                <span id="budget-remaining-text">Remaining: ₹0.00</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div id="budget-progress-bar" class="h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
+      <div
+        id="error-indicator"
+        class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 shadow-md"
+        role="alert"
+      >
+        <strong class="font-bold">Error:</strong>
+        <span id="error-message" class="block sm:inline"
+          >Something went wrong.</span
+        >
+        <span
+          id="close-error-button"
+          class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer"
+        >
+          <svg
+            class="fill-current h-6 w-6 text-red-500"
+            role="button"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+          >
+            <title>Close</title>
+            <path
+              d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"
+            />
+          </svg>
+        </span>
+      </div>
 
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <div class="flex justify-between items-center mb-4">
-                             <h2 class="text-lg font-semibold">Monthly Breakdown</h2>
-                             <div class="text-right">
-                                <span class="text-xs text-gray-500">All-Time Total</span>
-                                <p id="all-time-total" class="text-lg font-semibold text-gray-800">₹0.00</p>
-                             </div>
-                        </div>
-                        <div id="monthly-breakdown" class="breakdown-list space-y-2">
-                            <p class="text-gray-500 text-sm">Log in for details.</p>
-                        </div>
-                    </div>
+      <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+          <button
+            id="tracker-tab-button"
+            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600"
+          >
+            Tracker
+          </button>
+          <button
+            id="dashboard-tab-button"
+            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          >
+            Dashboard
+          </button>
+        </nav>
+      </div>
 
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Recent Daily Totals</h2>
-                        <div id="daily-breakdown" class="breakdown-list space-y-2">
-                            <p class="text-gray-500 text-sm">Log in for details.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-2 lg:order-2 space-y-6">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h2 class="text-lg font-semibold mb-4">Add Expenses</h2>
-                        <p class="text-sm text-gray-600 mb-4">Paste notes below or upload a .txt, .pdf, or .docx file.</p>
-                        <textarea id="expense-input" rows="8" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="e.g.&#10;- Coffee with client ₹150.50 yesterday&#10;- Groceries at Safeway ₹2300.12 11/01/2025&#10;- Uber ride ₹450.00"></textarea>
-                        
-                        <input type="file" id="file-upload-input" class="hidden" accept=".txt,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                        <button id="file-upload-button" class="mt-3 w-full bg-white text-indigo-600 font-semibold py-2 px-4 rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out flex items-center justify-center">
-                            <span id="file-upload-label" class="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                                Upload File
-                            </span>
-                            <span id="file-upload-spinner" class="hidden flex items-center">
-                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                Reading file...
-                            </span>
-                        </button>
-                        <p class="text-xs text-gray-500 mt-2">To upload a Google Doc, first download it as a .docx file.</p>
-                        
-                        <button id="analyze-button" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Analyze Expenses</button>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div class="p-6 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                            <h2 class="text-lg font-semibold">Full Expense Log</h2>
-                            <div class="relative inline-block text-left">
-                                <div>
-                                    <button type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500" id="download-dropdown-button" aria-haspopup="true" aria-expanded="true">
-                                        Download
-                                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                    </button>
-                                </div>
-                                <div id="download-menu" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-20" role="menu" aria-orientation="vertical" aria-labelledby="download-dropdown-button">
-                                    <div class="py-1" role="none">
-                                        <button id="download-pdf-button" class="text-gray-700 block w-full text-left px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Download as PDF</button>
-                                        <button id="download-csv-button" class="text-gray-700 block w-full text-left px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Download as CSV (Excel)</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-container">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                        <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                        <th scope="col" class="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                        <th scope="col" class="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="expense-table-body" class="bg-white divide-y divide-gray-200">
-                                    <tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">Log in to see your expenses.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="main-dashboard-view" class="hidden">
-            <div class="mb-6 p-4 bg-white rounded-lg shadow-md flex flex-col sm:flex-row gap-4">
-                <div class="flex-1">
-                    <label for="dashboard-year-filter" class="block text-sm font-medium text-gray-700">Filter by Year</label>
-                    <select id="dashboard-year-filter" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <option value="all">All Years</option>
-                    </select>
-                </div>
-                <div class="flex-1">
-                    <label for="dashboard-month-filter" class="block text-sm font-medium text-gray-700">Filter by Month</label>
-                    <select id="dashboard-month-filter" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <option value="all">All Months</option>
-                    </select>
-                </div>
-                <div class="flex-1 bg-indigo-50 p-4 rounded-lg flex flex-col justify-center items-center">
-                    <span class="text-sm font-medium text-indigo-700">Total Filtered Expenses</span>
-                    <div id="dashboard-total-expense" class="text-3xl font-bold text-indigo-600">₹0.00</div>
-                </div>
+      <div id="main-tracker-view">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-1 lg:order-1 space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h2 class="text-lg font-semibold mb-4">Monthly Budget</h2>
+              <div class="relative">
+                <span
+                  class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"
+                  >₹</span
+                >
+                <input
+                  type="number"
+                  id="budget-input"
+                  placeholder="Enter your budget"
+                  class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                />
+              </div>
+              <p class="text-xs text-gray-500 mt-2">
+                Your budget is saved automatically.
+              </p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="chart-container">
-                        <canvas id="category-pie-chart"></canvas>
-                    </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h2 class="text-lg font-semibold mb-4">
+                Current Month's Expenses
+              </h2>
+              <div
+                id="total-expense"
+                class="text-4xl font-bold text-indigo-600 transition-colors duration-300"
+              >
+                ₹0.00
+              </div>
+              <div id="budget-progress" class="mt-4 hidden">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                  <span id="budget-spent-text">Spent: ₹0.00</span>
+                  <span id="budget-remaining-text">Remaining: ₹0.00</span>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="chart-container">
-                        <canvas id="trend-bar-chart"></canvas>
-                    </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    id="budget-progress-bar"
+                    class="h-2.5 rounded-full transition-all duration-300"
+                    style="width: 0%"
+                  ></div>
                 </div>
+              </div>
             </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Monthly Breakdown</h2>
+                <div class="text-right">
+                  <span class="text-xs text-gray-500">All-Time Total</span>
+                  <p
+                    id="all-time-total"
+                    class="text-lg font-semibold text-gray-800"
+                  >
+                    ₹0.00
+                  </p>
+                </div>
+              </div>
+              <div id="monthly-breakdown" class="breakdown-list space-y-2">
+                <p class="text-gray-500 text-sm">Log in for details.</p>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h2 class="text-lg font-semibold mb-4">Recent Daily Totals</h2>
+              <div id="daily-breakdown" class="breakdown-list space-y-2">
+                <p class="text-gray-500 text-sm">Log in for details.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 lg:order-2 space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h2 class="text-lg font-semibold mb-4">Add Expenses</h2>
+              <p class="text-sm text-gray-600 mb-4">
+                Paste notes below or upload a .txt, .pdf, or .docx file.
+              </p>
+              <textarea
+                id="expense-input"
+                rows="8"
+                class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                placeholder="e.g.&#10;- Coffee with client ₹150.50 yesterday&#10;- Groceries at Safeway ₹2300.12 11/01/2025&#10;- Uber ride ₹450.00"
+              ></textarea>
+
+              <input
+                type="file"
+                id="file-upload-input"
+                class="hidden"
+                accept=".txt,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              />
+              <button
+                id="file-upload-button"
+                class="mt-3 w-full bg-white text-indigo-600 font-semibold py-2 px-4 rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out flex items-center justify-center"
+              >
+                <span id="file-upload-label" class="flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                    />
+                  </svg>
+                  Upload File
+                </span>
+                <span id="file-upload-spinner" class="hidden flex items-center">
+                  <svg
+                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Reading file...
+                </span>
+              </button>
+              <p class="text-xs text-gray-500 mt-2">
+                To upload a Google Doc, first download it as a .docx file.
+              </p>
+
+              <button
+                id="analyze-button"
+                class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Analyze Expenses
+              </button>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+              <div
+                class="p-6 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"
+              >
+                <h2 class="text-lg font-semibold">Full Expense Log</h2>
+                <div class="relative inline-block text-left">
+                  <div>
+                    <button
+                      type="button"
+                      class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
+                      id="download-dropdown-button"
+                      aria-haspopup="true"
+                      aria-expanded="true"
+                    >
+                      Download
+                      <svg
+                        class="-mr-1 ml-2 h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <div
+                    id="download-menu"
+                    class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-20"
+                    role="menu"
+                    aria-orientation="vertical"
+                    aria-labelledby="download-dropdown-button"
+                  >
+                    <div class="py-1" role="none">
+                      <button
+                        id="download-pdf-button"
+                        class="text-gray-700 block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        role="menuitem"
+                      >
+                        Download as PDF
+                      </button>
+                      <button
+                        id="download-csv-button"
+                        class="text-gray-700 block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        role="menuitem"
+                      >
+                        Download as CSV (Excel)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Date
+                      </th>
+                      <th
+                        scope="col"
+                        class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Item
+                      </th>
+                      <th
+                        scope="col"
+                        class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Category
+                      </th>
+                      <th
+                        scope="col"
+                        class="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Amount
+                      </th>
+                      <th
+                        scope="col"
+                        class="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    id="expense-table-body"
+                    class="bg-white divide-y divide-gray-200"
+                  >
+                    <tr>
+                      <td
+                        colspan="5"
+                        class="py-4 px-4 text-center text-gray-500"
+                      >
+                        Log in to see your expenses.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div id="main-dashboard-view" class="hidden">
+        <div
+          class="mb-6 p-4 bg-white rounded-lg shadow-md flex flex-col sm:flex-row gap-4"
+        >
+          <div class="flex-1">
+            <label
+              for="dashboard-year-filter"
+              class="block text-sm font-medium text-gray-700"
+              >Filter by Year</label
+            >
+            <select
+              id="dashboard-year-filter"
+              class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            >
+              <option value="all">All Years</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label
+              for="dashboard-month-filter"
+              class="block text-sm font-medium text-gray-700"
+              >Filter by Month</label
+            >
+            <select
+              id="dashboard-month-filter"
+              class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            >
+              <option value="all">All Months</option>
+            </select>
+          </div>
+          <div
+            class="flex-1 bg-indigo-50 p-4 rounded-lg flex flex-col justify-center items-center"
+          >
+            <span class="text-sm font-medium text-indigo-700"
+              >Total Filtered Expenses</span
+            >
+            <div
+              id="dashboard-total-expense"
+              class="text-3xl font-bold text-indigo-600"
+            >
+              ₹0.00
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
+            <h3
+              class="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-100"
+            >
+              Category Breakdown
+            </h3>
+            <div class="chart-container">
+              <canvas id="category-pie-chart"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
+            <h3
+              id="trend-chart-title"
+              class="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-100"
+            >
+              Monthly Expense Trend
+            </h3>
+
+            <div class="relative">
+              <div
+                class="absolute top-0 left-0 h-full w-[50px] z-20 bg-white dark:bg-gray-800 pointer-events-none"
+              >
+                <canvas id="trend-yaxis-overlay"></canvas>
+              </div>
+              <div class="overflow-x-auto ml-[50px] w-[calc(100%-50px)]">
+                <div class="chart-container" id="trend-chart-area">
+                  <canvas id="trend-bar-chart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    
+
     <script type="module" src="js/app.js"></script>
-</body>
+  </body>
 </html>
