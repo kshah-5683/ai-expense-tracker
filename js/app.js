@@ -92,14 +92,9 @@ const handleBudgetInput = debounce((e) => {
 
 // Called whenever new data arrives from Firestore
 const updateApplicationData = debounce(() => {
-    // 1. Rebuild category learning from history
-    state.categoryOverrides = buildCategoryOverrides(state.allExpenses);
-
-    // 2. Update Tracker View
+    // Update Views
     UI.renderExpenseTable(state.allExpenses);
     UI.renderSummaries(state.allExpenses, state.monthlyBudget);
-
-    // 3. Update Dashboard View
     Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
 }, 250);
 
