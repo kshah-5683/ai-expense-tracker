@@ -290,12 +290,14 @@ export function renderSummaries(expenses, monthlyBudget) {
     // Update Main Net Balance Display
     const netBalance = totalIncome - totalExpense;
     els.totalExpense.textContent = `₹${netBalance.toFixed(2)}`;
-    // Optional: Color the Net Balance based on positivity
-    els.totalExpense.classList.remove('text-indigo-600', 'text-green-600', 'text-red-600', 'dark:text-teal-400', 'dark:text-green-400', 'dark:text-red-400');
+    
+    els.totalExpense.className = 'text-4xl font-bold transition-colors duration-300'; // Reset base classes
     if (netBalance >= 0) {
-         els.totalExpense.classList.add('text-indigo-600', 'dark:text-teal-400'); // Neutral/Good
+         // Positive: Use Theme Teal
+         els.totalExpense.classList.add('text-teal-600', 'dark:text-teal-400');
     } else {
-         els.totalExpense.classList.add('text-red-600', 'dark:text-red-400'); // Negative balance warning
+         // Negative: Use Theme Pink
+         els.totalExpense.classList.add('text-pink-600', 'dark:text-pink-400');
     }
 
     // 3. Budget Progress Logic (Expenses vs Budget)

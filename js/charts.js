@@ -29,24 +29,33 @@ function populateFilters(allEntries, yearFilterEl, monthFilterEl) {
     const months = new Set();
 
     allEntries.forEach(entry => {
+        // Robust check: ensure date exists and is at least YYYY-MM (7 chars)
+        if (!entry.date || entry.date.length < 7) return;
+
         try {
-            if (!entry.date) return; // Skip invalid entries
-            const date = new Date(entry.date + 'T00:00:00Z');
-            if (isNaN(date.getTime())) return;
-            
-            const yearStr = date.getFullYear().toString();
+            // 1. Safer string-based extraction for filters (avoids timezone issues)
+            const yearStr = entry.date.substring(0, 4);  // "2025" from "2025-11-08"
+            const monthStr = entry.date.substring(0, 7); // "2025-11"
+
             years.add(yearStr);
+
+            // Only add to month list if it matches the selected year filter
             if (currentYear === 'all' || yearStr === currentYear) {
-                months.add(date.toISOString().slice(0, 7));
+                months.add(monthStr);
             }
-        } catch (e) { console.warn("Filter Date Error:", e); }
+        } catch (e) {
+            console.warn("Skipping invalid date for filter:", entry.date);
+        }
     });
 
+    // Repopulate Year Filter
     yearFilterEl.innerHTML = '<option value="all">All Years</option>';
     Array.from(years).sort().reverse().forEach(year => {
-        yearFilterEl.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+        const isSelected = year === currentYear ? 'selected' : '';
+        yearFilterEl.innerHTML += `<option value="${year}" ${isSelected}>${year}</option>`;
     });
 
+    // Repopulate Month Filter
     if (currentYear === 'all') {
         monthFilterEl.innerHTML = '<option value="all">Select a Year First</option>';
         monthFilterEl.disabled = true;
@@ -55,10 +64,15 @@ function populateFilters(allEntries, yearFilterEl, monthFilterEl) {
         monthFilterEl.disabled = false;
         monthFilterEl.classList.remove('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-700');
         monthFilterEl.innerHTML = '<option value="all">All Months</option>';
-        Array.from(months).sort().reverse().forEach(month => {
-            const dateObj = new Date(month + '-02T00:00:00Z');
-            const label = dateObj.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
-            monthFilterEl.innerHTML += `<option value="${month}" ${month === currentMonth ? 'selected' : ''}>${label}</option>`;
+        
+        Array.from(months).sort().reverse().forEach(monthISO => {
+            // Create a safe date object for formatting the label (e.g., "November")
+            // Appending '-02' avoids timezone-related off-by-one errors
+            const dateObj = new Date(monthISO + '-02');
+            const label = dateObj.toLocaleString('default', { month: 'long' });
+            
+            const isSelected = monthISO === currentMonth ? 'selected' : '';
+            monthFilterEl.innerHTML += `<option value="${monthISO}" ${isSelected}>${label}</option>`;
         });
     }
 }
@@ -177,8 +191,8 @@ function renderTrendChart(incomeEntries, expenseEntries, selectedMonth) {
         data: {
             labels: sortedKeys,
             datasets: [
-                { label: 'Income', data: incomeData, backgroundColor: '#22C55E', borderRadius: 4 }, // Green
-                { label: 'Expense', data: expenseData, backgroundColor: '#069494', borderRadius: 4 }  // Teal
+                { label: 'Income', data: incomeData, backgroundColor: '#069494', borderRadius: 4 }, // Green
+                { label: 'Expense', data: expenseData, backgroundColor: '#FF69B4', borderRadius: 4 }  // Teal
             ]
         },
         options: {
