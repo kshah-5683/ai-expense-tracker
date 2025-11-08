@@ -76,6 +76,10 @@ export const els = {
     deleteConfirmBtn: document.getElementById('delete-confirm-button'),
     deleteCancelBtn: document.getElementById('delete-cancel-button'),
     closeDeleteModalBtn: document.getElementById('close-delete-modal-button'),
+
+    themeToggleBtn: document.getElementById('theme-toggle'),
+    themeDarkIcon: document.getElementById('theme-toggle-dark-icon'),
+    themeLightIcon: document.getElementById('theme-toggle-light-icon'),
 };
 
 // --- General UI Actions ---
@@ -317,4 +321,33 @@ function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Inf
             containerEl.appendChild(el);
         });
     }
+}
+
+// --- Theme ---
+export function toggleTheme() {
+    // Toggle class on HTML tag
+    document.documentElement.classList.toggle('dark');
+    
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
+    updateThemeIcons(isDark);
+}
+
+export function initTheme() {
+    // Check local storage or system preference
+    const userPref = localStorage.getItem('color-theme');
+    const systemPrefDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (userPref === 'dark' || (!userPref && systemPrefDark)) {
+        document.documentElement.classList.add('dark');
+        updateThemeIcons(true);
+    } else {
+        document.documentElement.classList.remove('dark');
+        updateThemeIcons(false);
+    }
+}
+
+function updateThemeIcons(isDark) {
+    els.themeDarkIcon.classList.toggle('hidden', isDark);
+    els.themeLightIcon.classList.toggle('hidden', !isDark);
 }
