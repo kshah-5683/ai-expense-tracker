@@ -69,6 +69,7 @@ export const els = {
     // Edit form inputs
     editId: document.getElementById('edit-expense-id'),
     editDate: document.getElementById('edit-date'),
+    editType: document.getElementById('edit-type'),
     editItem: document.getElementById('edit-item'),
     editCategory: document.getElementById('edit-category'),
     editPrice: document.getElementById('edit-price'),
@@ -186,6 +187,7 @@ export function toggleEditModal(show, expense = null) {
     if (show && expense) {
         els.editId.value = expense.id;
         els.editDate.value = expense.date;
+        els.editType.value = expense.type || 'expense';
         els.editItem.value = expense.item;
         els.editCategory.value = expense.category;
         els.editPrice.value = expense.price;

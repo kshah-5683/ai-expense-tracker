@@ -222,6 +222,7 @@ function init() {
         
         const updatedData = {
             date: UI.els.editDate.value,
+            type: UI.els.editType.value,
             item: UI.els.editItem.value,
             category: UI.els.editCategory.value,
             price: parseFloat(UI.els.editPrice.value) || 0
