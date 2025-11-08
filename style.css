@@ -1,0 +1,28 @@
+.breakdown-list { max-height: 250px; overflow-y: auto; }
+.breakdown-list::-webkit-scrollbar { width: 6px; }
+.breakdown-list::-webkit-scrollbar-track { background: #f1f5f9; }
+.breakdown-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.breakdown-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Ensure charts are responsive and centered */
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* New style for scrollable table */
+.table-container {
+    max-height: 600px; /* Adjust as needed */
+    overflow-y: auto;
+}
+/* Sticky header for scrollable table */
+.table-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f9fafb; /* Matches bg-gray-50 */
+}
