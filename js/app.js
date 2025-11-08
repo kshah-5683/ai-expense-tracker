@@ -3,7 +3,7 @@ import * as Auth from './auth.js';
 import * as Data from './data.js';
 import * as Charts from './charts.js';
 import * as Export from './export.js';
-import { debounce, buildCategoryOverrides } from './utils.js';
+import { debounce, generateKnowledgeBase } from './utils.js';
 
 // --- Application State ---
 // Centralized state management replaces scattered global variables
@@ -12,7 +12,6 @@ const state = {
     allExpenses: [],
     monthlyBudget: 0,
     // Store unsubscribe functions to detach listeners on logout
-    categoryOverrides: {},
     unsubExpenses: null,
     unsubBudget: null,
     // Temporary storage for the expense currently being deleted
@@ -36,24 +35,22 @@ async function handleAnalyzeClick() {
     UI.showLoading(true);
 
     try {
-        const expenses = await Data.analyzeTextWithAI(rawText);
+        // 1. Generate the knowledge base from current complete history
+        const historyContext = generateKnowledgeBase(state.allExpenses);
+
+        // 2. Pass it to the AI
+        const expenses = await Data.analyzeTextWithAI(rawText, historyContext);
+        
         if (!expenses || expenses.length === 0) {
             throw new Error("The AI could not find any expenses in your notes.");
         }
-        // Before saving, check if we have a better category in our memory
-        expenses.forEach(exp => {
-            const normalizedItem = exp.item.toLowerCase().trim();
-            if (state.categoryOverrides[normalizedItem]) {
-                // Found a known item! Override the AI's guess with user's preference.
-                console.log(`Applying learned category for '${exp.item}': ${state.categoryOverrides[normalizedItem]}`);
-                exp.category = state.categoryOverrides[normalizedItem];
-            }
-        });
-        // Save all found expenses to Firestore
+
+        // (Removed the old manual override loop here, it's no longer needed!)
+
         const savePromises = expenses.map(exp => Data.addExpense(state.currentUser.uid, exp));
         await Promise.all(savePromises);
         
-        UI.els.expenseInput.value = ''; // Clear input on success
+        UI.els.expenseInput.value = '';
     } catch (error) {
         console.error("Analysis failed:", error);
         UI.showError(`Analysis failed: ${error.message}`);
@@ -95,14 +92,9 @@ const handleBudgetInput = debounce((e) => {
 
 // Called whenever new data arrives from Firestore
 const updateApplicationData = debounce(() => {
-    // 1. Rebuild category learning from history
-    state.categoryOverrides = buildCategoryOverrides(state.allExpenses);
-
-    // 2. Update Tracker View
+    // Update Views
     UI.renderExpenseTable(state.allExpenses);
     UI.renderSummaries(state.allExpenses, state.monthlyBudget);
-
-    // 3. Update Dashboard View
     Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
 }, 250);
 
@@ -201,7 +193,21 @@ function init() {
         try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
         catch (error) { UI.els.authError.textContent = error.message; }
     });
-
+    // Forgot Password
+    UI.els.forgotPasswordLink.addEventListener('click', async () => {
+        const email = UI.els.loginEmailInput.value.trim();
+        if (!email) {
+            UI.els.authError.textContent = "Please enter your email address first.";
+            return;
+        }
+        try {
+            await Auth.sendPasswordReset(email);
+            alert(`Password reset email sent to ${email}. Check your inbox.`);
+        } catch (error) {
+            console.error("Reset failed:", error);
+            UI.els.authError.textContent = error.message;
+        }
+    });
     // Edit Modal Events
     UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
     UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));

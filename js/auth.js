@@ -1,4 +1,4 @@
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { auth } from "./firebase.js";
 
 // RENAMED: initAuth -> initAuthListener to match app.js
@@ -14,6 +14,10 @@ export function initAuthListener(onLogin, onLogout) {
             onLogout();
         }
     });
+}
+
+export async function sendPasswordReset(email) {
+    return await sendPasswordResetEmail(auth, email);
 }
 
 export async function registerUser(email, password) {

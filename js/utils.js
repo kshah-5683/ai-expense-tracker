@@ -35,3 +35,20 @@ export function buildCategoryOverrides(expensesDescending) {
     });
     return overrides;
 }
+
+export function generateKnowledgeBase(expenses) {
+    const uniqueMap = new Map();
+    // Iterate newest first (expenses are already sorted by date desc)
+    // to ensure we capture the most recent user preference for an item.
+    expenses.forEach(exp => {
+        if (exp.item && exp.category) {
+             const key = exp.item.toLowerCase().trim();
+             if (!uniqueMap.has(key)) {
+                 // Store the exact original casing for better AI context
+                 uniqueMap.set(key, `"${exp.item}": "${exp.category}"`);
+             }
+        }
+    });
+    // Join them into a single string to inject into the prompt
+    return Array.from(uniqueMap.values()).join(' | ');
+}

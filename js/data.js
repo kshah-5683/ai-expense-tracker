@@ -4,22 +4,26 @@ import {
 import { db, APP_ID } from "./firebase.js";
 
 // --- AI Analysis ---
-// --- AI Analysis ---
-// --- AI Analysis ---
-export async function analyzeTextWithAI(rawText) {
+// NOW ACCEPTS A SECOND ARGUMENT: knowledgeBase
+export async function analyzeTextWithAI(rawText, knowledgeBase = "") {
     const todayISO = new Date().toISOString().split('T')[0];
     
-    // Enhanced prompt injection to fix categorization and exact text issues
     const textWithContext = `
-IMPORTANT INSTRUCTIONS FOR AI:
-1. EXACT MATCH: Extract 'item' names exactly as they appear. Do NOT fix typos or expand abbreviations in the final 'item' field (e.g., keep "covfefe" as "covfefe").
-2. SMART CATEGORIZATION: Use standard categories even if the item name has typos, slang, or abbreviations. Examples:
-   - Typos: "covfefe" -> categorize as "Beverage" (like coffee)
-   - Abbreviations: "mov" -> categorize as "Entertainment" (like movie)
-   - Variations: "Amazon WS" -> categorize as "Cloud" (like AWS)
-3. DATE CONTEXT: Today's date is ${todayISO}. Use this for relative dates like "today" or "yesterday".
+CONTEXT: Today's date is ${todayISO}.
+USER HISTORICAL MAPPINGS: ${knowledgeBase || "None available yet."}
 
-USER INPUT TEXT TO PROCESS:
+TASK: Extract expenses from the text below following this STRICT PROCESS:
+
+1. EXTRACT: Identify item name EXACTLY as entered.
+2. NORMALIZE: Fix typos (internal use only).
+3. CATEGORIZE (PRIORITY RULE): 
+   - Check USER HISTORICAL MAPPINGS first. 
+   - If an exact match exists, USE THAT CATEGORY.
+   - If a *similar* item exists in mappings, USE THAT SAME CATEGORY (e.g., if history has "Coffee":"Fuel", then categorized new entry "Tea" as "Fuel" too).
+   - Only use standard categories if NO relevant past mapping is found.
+4. OUTPUT: JSON with exact item name and assigned category.
+
+USER TEXT TO PROCESS:
 ${rawText}
 `.trim();
 
