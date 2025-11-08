@@ -1,8 +1,14 @@
 import { monthFormatter } from "./utils.js";
 
-// Centralized repository of all DOM elements used in the app
+// --- DOM References ---
 export const els = {
-    // Inputs & Buttons
+    // Main Views
+    trackerView: document.getElementById('main-tracker-view'),
+    dashboardView: document.getElementById('main-dashboard-view'),
+    trackerTabBtn: document.getElementById('tracker-tab-button'),
+    dashboardTabBtn: document.getElementById('dashboard-tab-button'),
+
+    // Tracker - Inputs & Actions
     expenseInput: document.getElementById('expense-input'),
     analyzeBtn: document.getElementById('analyze-button'),
     fileUploadBtn: document.getElementById('file-upload-button'),
@@ -10,32 +16,23 @@ export const els = {
     fileUploadSpinner: document.getElementById('file-upload-spinner'),
     fileUploadLabel: document.getElementById('file-upload-label'),
 
-    // Error Handling
-    errorIndicator: document.getElementById('error-indicator'),
-    errorMessage: document.getElementById('error-message'),
-    closeErrorBtn: document.getElementById('close-error-button'),
-
-    // Views & Tabs
-    mainTrackerView: document.getElementById('main-tracker-view'),
-    mainDashboardView: document.getElementById('main-dashboard-view'),
-    trackerTabBtn: document.getElementById('tracker-tab-button'),
-    dashboardTabBtn: document.getElementById('dashboard-tab-button'),
-
-    // Tracker Data Displays
-    totalExpense: document.getElementById('total-expense'),
+    // Tracker - Summaries
+    totalExpense: document.getElementById('total-expense'), // Now shows Net Balance
+    incomeDisplay: document.getElementById('income-display'),
+    expenseDisplay: document.getElementById('expense-display'),
     monthlyBreakdown: document.getElementById('monthly-breakdown'),
     dailyBreakdown: document.getElementById('daily-breakdown'),
-    expenseTableBody: document.getElementById('expense-table-body'),
-    allTimeTotal: document.getElementById('all-time-total'),
+    allTimeTotal: document.getElementById('all-time-total'), // Now shows All-Time Net
 
-    // Budget UI
+    // Tracker - Budget
     budgetInput: document.getElementById('budget-input'),
     budgetProgress: document.getElementById('budget-progress'),
     budgetSpentText: document.getElementById('budget-spent-text'),
     budgetRemainingText: document.getElementById('budget-remaining-text'),
     budgetProgressBar: document.getElementById('budget-progress-bar'),
 
-    // Downloads
+    // Tracker - Table & Download
+    expenseTableBody: document.getElementById('expense-table-body'),
     downloadDropdown: document.getElementById('download-dropdown-button'),
     downloadMenu: document.getElementById('download-menu'),
     downloadPdfBtn: document.getElementById('download-pdf-button'),
@@ -45,28 +42,26 @@ export const els = {
     yearFilter: document.getElementById('dashboard-year-filter'),
     monthFilter: document.getElementById('dashboard-month-filter'),
 
-    // Auth & User Info
+    // Auth & User
+    authModal: document.getElementById('auth-modal'),
     loginBtn: document.getElementById('login-button'),
+    logoutBtn: document.getElementById('logout-button'),
     userInfoDisplay: document.getElementById('user-info-display'),
     userIdDisplay: document.getElementById('user-id-display'),
-    logoutBtn: document.getElementById('logout-button'),
+    loginForm: document.getElementById('login-form'),
+    registerForm: document.getElementById('register-form'),
+    authError: document.getElementById('auth-error'),
+    loginTab: document.getElementById('login-tab'),
+    registerTab: document.getElementById('register-tab'),
+    closeAuthModalBtn: document.getElementById('close-modal-button'),
     forgotPasswordLink: document.getElementById('forgot-password-link'),
     loginEmailInput: document.getElementById('login-email'),
 
-    // Modals
-    authModal: document.getElementById('auth-modal'),
-    authError: document.getElementById('auth-error'),
-    closeAuthModalBtn: document.getElementById('close-modal-button'),
-    loginTab: document.getElementById('login-tab'),
-    registerTab: document.getElementById('register-tab'),
-    loginForm: document.getElementById('login-form'),
-    registerForm: document.getElementById('register-form'),
-
+    // Edit Modal
     editModal: document.getElementById('edit-modal'),
     editForm: document.getElementById('edit-form'),
     closeEditModalBtn: document.getElementById('close-edit-modal-button'),
     cancelEditBtn: document.getElementById('cancel-edit-button'),
-    // Edit form inputs
     editId: document.getElementById('edit-expense-id'),
     editDate: document.getElementById('edit-date'),
     editType: document.getElementById('edit-type'),
@@ -74,23 +69,24 @@ export const els = {
     editCategory: document.getElementById('edit-category'),
     editPrice: document.getElementById('edit-price'),
 
+    // Delete Modal
     deleteModal: document.getElementById('delete-modal'),
     deleteModalText: document.getElementById('delete-modal-text'),
     deleteConfirmBtn: document.getElementById('delete-confirm-button'),
     deleteCancelBtn: document.getElementById('delete-cancel-button'),
     closeDeleteModalBtn: document.getElementById('close-delete-modal-button'),
 
+    // Theme & Error
     themeToggleBtn: document.getElementById('theme-toggle'),
     themeDarkIcon: document.getElementById('theme-toggle-dark-icon'),
     themeLightIcon: document.getElementById('theme-toggle-light-icon'),
-
-    //credit income 
-    incomeDisplay: document.getElementById('income-display'),
-    expenseDisplay: document.getElementById('expense-display'),
-
+    errorIndicator: document.getElementById('error-indicator'),
+    errorMessage: document.getElementById('error-message'),
+    closeErrorBtn: document.getElementById('close-error-button'),
 };
 
-// --- General UI Actions ---
+// --- GENERAL UI ACTIONS ---
+
 export function showLoading(isLoading) {
     if (isLoading) {
         els.analyzeBtn.disabled = true;
@@ -120,26 +116,26 @@ export function hideError() {
     els.errorIndicator.classList.add('hidden');
 }
 
-// --- Tab Navigation ---
 export function switchMainTab(tab) {
     if (tab === 'tracker') {
-        els.trackerTabBtn.classList.add('border-indigo-500', 'text-indigo-600');
+        els.trackerTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.trackerTabBtn.classList.remove('border-transparent', 'text-gray-500');
-        els.dashboardTabBtn.classList.remove('border-indigo-500', 'text-indigo-600');
+        els.dashboardTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.dashboardTabBtn.classList.add('border-transparent', 'text-gray-500');
-        els.mainTrackerView.classList.remove('hidden');
-        els.mainDashboardView.classList.add('hidden');
+        els.trackerView.classList.remove('hidden');
+        els.dashboardView.classList.add('hidden');
     } else {
-        els.dashboardTabBtn.classList.add('border-indigo-500', 'text-indigo-600');
+        els.dashboardTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.dashboardTabBtn.classList.remove('border-transparent', 'text-gray-500');
-        els.trackerTabBtn.classList.remove('border-indigo-500', 'text-indigo-600');
+        els.trackerTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.trackerTabBtn.classList.add('border-transparent', 'text-gray-500');
-        els.mainDashboardView.classList.remove('hidden');
-        els.mainTrackerView.classList.add('hidden');
+        els.dashboardView.classList.remove('hidden');
+        els.trackerView.classList.add('hidden');
     }
 }
 
-// --- Auth UI ---
+// --- AUTH & MODALS ---
+
 export function updateAuthUI(user) {
     if (user) {
         els.userIdDisplay.textContent = user.email;
@@ -152,8 +148,7 @@ export function updateAuthUI(user) {
         els.loginBtn.classList.remove('hidden');
         toggleAuthModal(true);
         switchMainTab('tracker');
-        // Show empty state in table
-        els.expenseTableBody.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">Log in to see your expenses.</td></tr>';
+        renderExpenseTable([]); // Clear data
     }
 }
 
@@ -165,23 +160,22 @@ export function toggleAuthModal(show) {
 export function switchAuthTab(tab) {
     els.authError.textContent = '';
     if (tab === 'login') {
-        els.loginTab.classList.add('border-indigo-500', 'text-indigo-600');
+        els.loginTab.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.loginTab.classList.remove('border-transparent', 'text-gray-500');
-        els.registerTab.classList.remove('border-indigo-500', 'text-indigo-600');
+        els.registerTab.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.registerTab.classList.add('border-transparent', 'text-gray-500');
         els.loginForm.classList.remove('hidden');
         els.registerForm.classList.add('hidden');
     } else {
-        els.registerTab.classList.add('border-indigo-500', 'text-indigo-600');
+        els.registerTab.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.registerTab.classList.remove('border-transparent', 'text-gray-500');
-        els.loginTab.classList.remove('border-indigo-500', 'text-indigo-600');
+        els.loginTab.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
         els.loginTab.classList.add('border-transparent', 'text-gray-500');
         els.registerForm.classList.remove('hidden');
         els.loginForm.classList.add('hidden');
     }
 }
 
-// --- Modals (Edit/Delete) ---
 export function toggleEditModal(show, expense = null) {
     els.editModal.classList.toggle('hidden', !show);
     if (show && expense) {
@@ -196,12 +190,11 @@ export function toggleEditModal(show, expense = null) {
 
 export function toggleDeleteModal(show, itemName = '') {
     els.deleteModal.classList.toggle('hidden', !show);
-    if (show) {
-        els.deleteModalText.textContent = `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
-    }
+    if (show) els.deleteModalText.textContent = `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
 }
 
-// --- Main Data Rendering ---
+// --- DATA RENDERING ---
+
 export function renderExpenseTable(expenses) {
     els.expenseTableBody.innerHTML = '';
     if (expenses.length === 0) {
@@ -211,13 +204,11 @@ export function renderExpenseTable(expenses) {
 
     expenses.forEach(exp => {
         const isIncome = exp.type === 'income';
-        const amountClass = isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+        const amountClass = isIncome ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400';
         const sign = isIncome ? '+' : '-';
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
-        
-        // We added data-type, data-date, etc. back to the edit button below vvv
         tr.innerHTML = `
             <td class="py-3 px-4 text-sm text-gray-800 dark:text-gray-200">${exp.date}</td>
             <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">${exp.item}</td>
@@ -230,7 +221,7 @@ export function renderExpenseTable(expenses) {
                 ${sign}₹${(exp.price || 0).toFixed(2)}
             </td>
             <td class="py-3 px-4 text-center flex justify-center space-x-2">
-                <button class="text-gray-400 hover:text-indigo-600 edit-expense-btn" 
+                <button class="text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 edit-expense-btn" 
                         data-id="${exp.id}" 
                         data-date="${exp.date}" 
                         data-type="${exp.type || 'expense'}"
@@ -239,7 +230,7 @@ export function renderExpenseTable(expenses) {
                         data-price="${exp.price}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" /></svg>
                 </button>
-                <button class="text-gray-400 hover:text-red-600 delete-expense-btn" data-id="${exp.id}" data-item="${exp.item}">
+                <button class="text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 delete-expense-btn" data-id="${exp.id}" data-item="${exp.item}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </td>
@@ -250,135 +241,128 @@ export function renderExpenseTable(expenses) {
 
 export function renderSummaries(expenses, monthlyBudget) {
     const currentMonthISO = new Date().toISOString().slice(0, 7);
-    let totalIncome = 0;
-    let totalExpense = 0;
+    let currentMonthIncome = 0;
+    let currentMonthExpense = 0;
+    let allTimeIncome = 0;
+    let allTimeExpense = 0;
+
     const monthlyMap = {};
     const dailyMap = {};
 
-    // 1. Single loop to calculate all necessary totals
     expenses.forEach(exp => {
-        // Handle Income
-        if (exp.type === 'income') {
-            if (exp.date.startsWith(currentMonthISO)) {
-                totalIncome += (exp.price || 0);
-            }
-            return; // Don't add income to expense breakdowns
-        }
+        const price = exp.price || 0;
+        const isIncome = exp.type === 'income';
+        const monthKey = exp.date.slice(0, 7);
+        const dayKey = exp.date.slice(0, 10);
 
-        // Handle Expenses
-        // A. Current Month Total for Budgeting
-        if (exp.date.startsWith(currentMonthISO)) {
-            totalExpense += (exp.price || 0);
-        }
+        if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { income: 0, expense: 0 };
+        if (!dailyMap[dayKey]) dailyMap[dayKey] = { income: 0, expense: 0 };
 
-        // B. Populate Breakdown Lists (All time)
-        try {
-            const month = exp.date.slice(0, 7); // YYYY-MM
-            const day = exp.date.slice(0, 10);   // YYYY-MM-DD
-            monthlyMap[month] = (monthlyMap[month] || 0) + exp.price;
-            dailyMap[day] = (dailyMap[day] || 0) + exp.price;
-        } catch (e) {
-            console.warn("Invalid date format:", exp.date);
+        if (isIncome) {
+            allTimeIncome += price;
+            monthlyMap[monthKey].income += price;
+            dailyMap[dayKey].income += price;
+            if (exp.date.startsWith(currentMonthISO)) currentMonthIncome += price;
+        } else {
+            allTimeExpense += price;
+            monthlyMap[monthKey].expense += price;
+            dailyMap[dayKey].expense += price;
+            if (exp.date.startsWith(currentMonthISO)) currentMonthExpense += price;
         }
     });
 
-    // 2. Update Current Month UI
-    // Update Mini-Displays if they exist (safe check)
-    if (els.incomeDisplay) els.incomeDisplay.textContent = `+₹${totalIncome.toFixed(2)}`;
-    if (els.expenseDisplay) els.expenseDisplay.textContent = `-₹${totalExpense.toFixed(2)}`;
+    // Update UI
+    if (els.incomeDisplay) els.incomeDisplay.textContent = `+₹${currentMonthIncome.toFixed(2)}`;
+    if (els.expenseDisplay) els.expenseDisplay.textContent = `-₹${currentMonthExpense.toFixed(2)}`;
 
-    // Update Main Net Balance Display
-    const netBalance = totalIncome - totalExpense;
+    const netBalance = currentMonthIncome - currentMonthExpense;
     els.totalExpense.textContent = `₹${netBalance.toFixed(2)}`;
-    
-    els.totalExpense.className = 'text-4xl font-bold transition-colors duration-300'; // Reset base classes
-    if (netBalance >= 0) {
-         // Positive: Use Theme Teal
-         els.totalExpense.classList.add('text-teal-600', 'dark:text-teal-400');
-    } else {
-         // Negative: Use Theme Pink
-         els.totalExpense.classList.add('text-pink-600', 'dark:text-pink-400');
-    }
+    els.totalExpense.className = 'text-4xl font-bold transition-colors duration-300 ' + 
+        (netBalance >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
 
-    // 3. Budget Progress Logic (Expenses vs Budget)
-    els.budgetProgressBar.classList.remove('bg-indigo-600', 'bg-green-600', 'bg-yellow-500', 'bg-red-600');
+    const allTimeNet = allTimeIncome - allTimeExpense;
+    els.allTimeTotal.textContent = `₹${allTimeNet.toFixed(2)}`;
+    els.allTimeTotal.className = 'text-lg font-semibold ' + 
+        (allTimeNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-pink-600 dark:text-pink-400');
 
-    if (monthlyBudget > 0) {
-        const remaining = monthlyBudget - totalExpense;
-        // Ensure percentage stays between 0 and 100 for CSS width
-        const percentage = Math.min(Math.max((totalExpense / monthlyBudget) * 100, 0), 100);
-
-        els.budgetSpentText.textContent = `Spent: ₹${totalExpense.toFixed(2)}`;
-        els.budgetRemainingText.textContent = `Remaining: ₹${remaining.toFixed(2)}`;
-        els.budgetProgressBar.style.width = `${percentage}%`;
-
-        // Color logic based on percentage spent
-        if (percentage < 75) {
-            els.budgetProgressBar.classList.add('bg-green-600');
-        } else if (percentage < 100) {
-            els.budgetProgressBar.classList.add('bg-yellow-500');
-        } else {
-            els.budgetProgressBar.classList.add('bg-red-600');
-        }
-        els.budgetProgress.classList.remove('hidden');
-    } else {
-        els.budgetProgress.classList.add('hidden');
-    }
-
-    // 4. Render Side Breakdown Lists
+    updateBudgetUI(currentMonthExpense, monthlyBudget);
     renderBreakdownList(els.monthlyBreakdown, monthlyMap, monthFormatter);
     renderBreakdownList(els.dailyBreakdown, dailyMap, null, 10);
 }
 
-// Helper for rendering the small side lists
+function updateBudgetUI(totalExpense, monthlyBudget) {
+    els.budgetProgressBar.classList.remove('bg-teal-500', 'bg-yellow-500', 'bg-pink-500');
+    
+    if (monthlyBudget > 0) {
+        const remaining = monthlyBudget - totalExpense;
+        const percentage = Math.min(Math.max((totalExpense / monthlyBudget) * 100, 0), 100);
+        els.budgetSpentText.textContent = `Spent: ₹${totalExpense.toFixed(2)}`;
+        els.budgetRemainingText.textContent = `Remaining: ₹${remaining.toFixed(2)}`;
+        els.budgetProgressBar.style.width = `${percentage}%`;
+
+        if (percentage < 75) els.budgetProgressBar.classList.add('bg-teal-500');
+        else if (percentage < 100) els.budgetProgressBar.classList.add('bg-yellow-500');
+        else els.budgetProgressBar.classList.add('bg-pink-500');
+        
+        els.budgetProgress.classList.remove('hidden');
+    } else {
+        els.budgetProgress.classList.add('hidden');
+    }
+}
+
 function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Infinity) {
     containerEl.innerHTML = '';
     const sortedKeys = Object.keys(dataMap).sort().reverse();
 
     if (sortedKeys.length === 0) {
-        containerEl.innerHTML = '<p class="text-gray-500 text-sm">No data yet.</p>';
-    } else {
-        sortedKeys.slice(0, limit).forEach(key => {
-            let label = key;
-            if (formatter) {
-                // Create date object, ensuring we don't get timezone shifts by forcing a mid-day time or using UTC explicitly if the input is just YYYY-MM
-                const dateObj = new Date(key + (key.length === 7 ? '-02T00:00:00Z' : 'T00:00:00Z'));
-                label = formatter.format(dateObj);
-            }
-            
-            const el = document.createElement('div');
-            el.className = "flex justify-between items-center py-2 border-b";
-            el.innerHTML = `
-                <span class="font-medium">${label}</span>
-                <span class="text-gray-700">₹${dataMap[key].toFixed(2)}</span>
-            `;
-            containerEl.appendChild(el);
-        });
+        containerEl.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No data yet.</p>';
+        return;
     }
+
+    sortedKeys.slice(0, limit).forEach(key => {
+        const data = dataMap[key];
+        if (data.income === 0 && data.expense === 0) return;
+
+        let label = key;
+        if (formatter) {
+             const dateObj = new Date(key + (key.length === 7 ? '-02T00:00:00Z' : 'T00:00:00Z'));
+             label = formatter.format(dateObj);
+        }
+        
+        const incomeHtml = data.income > 0 ? `<div class="text-xs font-medium text-teal-600 dark:text-teal-400">+₹${data.income.toFixed(2)}</div>` : '';
+        const expenseHtml = data.expense > 0 ? `<div class="text-xs font-medium text-pink-600 dark:text-pink-400">-₹${data.expense.toFixed(2)}</div>` : '';
+
+        const el = document.createElement('div');
+        el.className = "flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-700/50 last:border-0";
+        el.innerHTML = `
+            <span class="font-medium text-gray-700 dark:text-gray-300">${label}</span>
+            <div class="text-right flex flex-col gap-0.5">
+                ${incomeHtml}
+                ${expenseHtml}
+            </div>
+        `;
+        containerEl.appendChild(el);
+    });
 }
 
-// --- Theme ---
+// --- THEME ---
+
 export function toggleTheme() {
-    // Toggle class on HTML tag
     document.documentElement.classList.toggle('dark');
-    
     const isDark = document.documentElement.classList.contains('dark');
     localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
     updateThemeIcons(isDark);
 }
 
 export function initTheme() {
-    // Check local storage or system preference
     const userPref = localStorage.getItem('color-theme');
     const systemPrefDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = userPref === 'dark' || (!userPref && systemPrefDark);
     
-    if (userPref === 'dark' || (!userPref && systemPrefDark)) {
-        document.documentElement.classList.add('dark');
-        updateThemeIcons(true);
-    } else {
-        document.documentElement.classList.remove('dark');
-        updateThemeIcons(false);
-    }
+    if (isDark) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    
+    updateThemeIcons(isDark);
 }
 
 function updateThemeIcons(isDark) {
