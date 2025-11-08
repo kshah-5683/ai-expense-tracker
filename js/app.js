@@ -263,6 +263,7 @@ function init() {
             const expenseData = {
                 id: editBtn.dataset.id,
                 date: editBtn.dataset.date,
+                type: editBtn.dataset.type,
                 item: editBtn.dataset.item,
                 category: editBtn.dataset.category,
                 price: editBtn.dataset.price

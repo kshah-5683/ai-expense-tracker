@@ -211,14 +211,13 @@ export function renderExpenseTable(expenses) {
 
     expenses.forEach(exp => {
         const isIncome = exp.type === 'income';
-        
-        // 1. Define color ONLY for the amount
         const amountClass = isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
         const sign = isIncome ? '+' : '-';
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
         
+        // We added data-type, data-date, etc. back to the edit button below vvv
         tr.innerHTML = `
             <td class="py-3 px-4 text-sm text-gray-800 dark:text-gray-200">${exp.date}</td>
             <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">${exp.item}</td>
@@ -231,7 +230,13 @@ export function renderExpenseTable(expenses) {
                 ${sign}₹${(exp.price || 0).toFixed(2)}
             </td>
             <td class="py-3 px-4 text-center flex justify-center space-x-2">
-                <button class="text-gray-400 hover:text-indigo-600 edit-expense-btn" data-id="${exp.id}" data-all='${JSON.stringify(exp)}'>
+                <button class="text-gray-400 hover:text-indigo-600 edit-expense-btn" 
+                        data-id="${exp.id}" 
+                        data-date="${exp.date}" 
+                        data-type="${exp.type || 'expense'}"
+                        data-item="${exp.item}" 
+                        data-category="${exp.category}" 
+                        data-price="${exp.price}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" /></svg>
                 </button>
                 <button class="text-gray-400 hover:text-red-600 delete-expense-btn" data-id="${exp.id}" data-item="${exp.item}">
