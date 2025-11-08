@@ -141,16 +141,40 @@ function renderPieChart(filteredExpenses) {
 
 function renderTrendChart(filteredExpenses, selectedMonth) {
     const ctx = document.getElementById('trend-bar-chart').getContext('2d');
+    const chartArea = document.getElementById('trend-chart-area');
+
     const trendData = {};
-    
     filteredExpenses.forEach(exp => {
-         // If a specific month is selected, group by day. Otherwise group by month.
          const key = (selectedMonth !== 'all') ? exp.date : exp.date.slice(0, 7);
          trendData[key] = (trendData[key] || 0) + exp.price;
     });
 
     const sortedTrend = Object.entries(trendData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
+    const dataPoints = sortedTrend.length;
 
+    // --- RESPONSIVE SCROLL LOGIC ---
+    // Only apply forced scrolling on small screens (tablets and below)
+    const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
+
+    if (isSmallScreen) {
+        const visibleWidth = chartArea.parentElement.clientWidth;
+        let requiredWidth = visibleWidth;
+
+        if (selectedMonth === 'all') {
+            // On mobile: show max 6 months at a time
+            if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
+        } else {
+            // On mobile: show max 7 days at a time
+            if (dataPoints > 7) requiredWidth = (visibleWidth / 7) * dataPoints;
+        }
+        // Apply calculated width to force scroll
+        chartArea.style.width = `${requiredWidth}px`;
+    } else {
+        // On desktop: reset to full width (no scroll, static axes)
+        chartArea.style.width = '100%';
+    }
+
+    // --- CHART RENDERING ---
     if (trendBarChart) trendBarChart.destroy();
     trendBarChart = new Chart(ctx, {
         type: 'bar',
@@ -160,6 +184,7 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
                 label: 'Expenses Over Time',
                 data: sortedTrend.map(e => e[1]),
                 backgroundColor: '#069494',
+                borderRadius: 4,
             }]
         },
         options: {
@@ -167,11 +192,11 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                title: { 
-                    display: true, 
+                title: {
+                    display: true,
                     text: selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend',
                     color: getThemeTextColor(),
-                    font: { size: 16}
+                    font: { size: 16 }
                 }
             },
             scales: {
@@ -182,8 +207,8 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
                         tooltipFormat: selectedMonth !== 'all' ? 'yyyy-MM-dd' : 'yyyy-MM'
                     },
                     title: { display: true, text: 'Date', color: getThemeTextColor() },
-                    ticks: { color: getThemeTextColor() },
-                    grid: { color: document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0' }
+                    ticks: {color: getThemeTextColor(), autoSkip: false, maxRotation: 45,minRotation: 0},
+                    grid: { display: false }
                 },
                 y: {
                     beginAtZero: true,
@@ -194,4 +219,4 @@ function renderTrendChart(filteredExpenses, selectedMonth) {
             }
         }
     });
-}
+}   
