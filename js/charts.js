@@ -5,8 +5,14 @@ let categoryPieChart = null;
 let trendBarChart = null;
 
 const CHART_COLORS = [
-    '#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-    '#3B82F6', '#22C55E', '#D97706', '#DC2626', '#7C3AED', '#6366F1'
+    '#069494', // Teal (Primary)
+    '#FFCE1B', // Mustard Yellow (Retro Sunset)
+    '#FF69B4', // Bubblegum Pink
+    '#ADEBB3', // Mint Green (Lotus Garden)
+    '#AD56C4', // Violet (Hydrangea)
+    '#FF857A', // Coral (Lotus Garden)
+    '#CCFF00', // Electric Lime
+    '#BE5103'  // Burnt Orange (Retro Sunset)
 ];
 
 // Updates dropdowns based on available data, then updates charts
@@ -32,10 +38,6 @@ export function updateCharts(allExpenses, selectedYear, selectedMonth) {
     renderPieChart(filtered);
     renderTrendChart(filtered, selectedMonth);
 }
-
-// js/charts.js
-
-// ... (imports and other code remain the same)
 
 function populateFilters(expenses, yearFilterEl, monthFilterEl) {
     const currentYearVal = yearFilterEl.value;
