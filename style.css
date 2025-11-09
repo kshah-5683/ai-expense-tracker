@@ -110,3 +110,18 @@ html.dark .bg-indigo-50 {
     background-color: #EEEFFC !important; /* Very light lavender for contrast in dark mode */
     color: #1E293B !important;
 }
+
+/* --- TABLE ROW HOVER --- */
+.expense-row {
+    transition: background-color 0.15s ease-in-out;
+}
+
+/* Light Mode Hover: Clear, light gray-blue */
+.expense-row:hover {
+    background-color: #E6F7F6 !important; 
+}
+
+/* Dark Mode Hover: Subtle transparent white */
+html.dark .expense-row:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}

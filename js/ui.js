@@ -182,7 +182,7 @@ export function renderExpenseTable(expenses) {
 
     expenses.forEach(exp => {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-100 dark:hover:bg-white/5 transition-colors';
+        tr.className = 'expense-row transition-colors';
         tr.innerHTML = `
             <td class="py-3 px-4 text-sm text-gray-800 dark:text-gray-200">${exp.date}</td>
             <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">${exp.item}</td>
