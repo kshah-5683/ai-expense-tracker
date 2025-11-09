@@ -239,8 +239,6 @@ export function renderExpenseTable(expenses) {
     });
 }
 
-// In js/ui.js
-
 export function renderSummaries(allEntries, monthlyBudget) {
     const currentMonthISO = new Date().toISOString().slice(0, 7);
     let currentMonthIncome = 0;
@@ -251,37 +249,37 @@ export function renderSummaries(allEntries, monthlyBudget) {
     const monthlyMap = {};
     const dailyMap = {};
 
-    allEntries.forEach(exp => {
-        // SAFETY CHECK: Skip entries with missing data to prevent crashes
-        if (!exp.date || typeof exp.price !== 'number') return;
-
-        const price = exp.price;
-        const isIncome = exp.type === 'income';
+    allEntries.forEach(entry => {
+        // 1. Robust Data Extraction
+        if (!entry.date) return;
+        const price = parseFloat(entry.price) || 0;
+        const isIncome = entry.type === 'income';
         
-        // Safe date extraction
-        let monthKey, dayKey;
-        try {
-             monthKey = exp.date.slice(0, 7);
-             dayKey = exp.date.slice(0, 10);
-        } catch (e) { return; } // Skip if date format is totally wrong
+        // Safe date slicing
+        const monthKey = entry.date.substring(0, 7);
+        const dayKey = entry.date.substring(0, 10);
+        if (monthKey.length < 7 || dayKey.length < 10) return;
 
+        // 2. Initialize if missing
         if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { income: 0, expense: 0 };
         if (!dailyMap[dayKey]) dailyMap[dayKey] = { income: 0, expense: 0 };
 
+        // 3. Aggregate
         if (isIncome) {
             allTimeIncome += price;
             monthlyMap[monthKey].income += price;
             dailyMap[dayKey].income += price;
-            if (exp.date.startsWith(currentMonthISO)) currentMonthIncome += price;
+            if (entry.date.startsWith(currentMonthISO)) currentMonthIncome += price;
         } else {
             allTimeExpense += price;
             monthlyMap[monthKey].expense += price;
             dailyMap[dayKey].expense += price;
-            if (exp.date.startsWith(currentMonthISO)) currentMonthExpense += price;
+            if (entry.date.startsWith(currentMonthISO)) currentMonthExpense += price;
         }
     });
 
-    // Update UI (with safety checks for existence of elements)
+    // --- UPDATE UI ---
+    // (Mini-displays and Main Totals - same as before)
     if (els.incomeDisplay) els.incomeDisplay.textContent = `+₹${currentMonthIncome.toFixed(2)}`;
     if (els.expenseDisplay) els.expenseDisplay.textContent = `-₹${currentMonthExpense.toFixed(2)}`;
 
@@ -300,8 +298,56 @@ export function renderSummaries(allEntries, monthlyBudget) {
     }
 
     updateBudgetUI(currentMonthExpense, monthlyBudget);
+
+    // Render Breakdowns with the robust map data
     renderBreakdownList(els.monthlyBreakdown, monthlyMap, monthFormatter);
     renderBreakdownList(els.dailyBreakdown, dailyMap, null, 10);
+}
+
+function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Infinity) {
+    if (!containerEl) return; // Safety check
+    containerEl.innerHTML = '';
+    
+    const sortedKeys = Object.keys(dataMap).sort().reverse();
+    if (sortedKeys.length === 0) {
+        containerEl.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No data yet.</p>';
+        return;
+    }
+
+    sortedKeys.slice(0, limit).forEach(key => {
+        // Ensure values exist, defaulting to 0
+        const income = dataMap[key].income || 0;
+        const expense = dataMap[key].expense || 0;
+
+        // If both are zero, skip rendering this empty row
+        if (income === 0 && expense === 0) return;
+
+        let label = key;
+        if (formatter) {
+             // Use a safe middle-of-the-day time to avoid timezone shifts
+             const dateObj = new Date(key + (key.length === 7 ? '-15T12:00:00Z' : 'T12:00:00Z'));
+             label = formatter.format(dateObj);
+        }
+        
+        // Only render the HTML for a value if it's greater than 0
+        const incomeHtml = income > 0 
+            ? `<div class="text-xs font-medium text-teal-600 dark:text-teal-400">+₹${income.toFixed(2)}</div>` 
+            : '';
+        const expenseHtml = expense > 0 
+            ? `<div class="text-xs font-medium text-pink-600 dark:text-pink-400">-₹${expense.toFixed(2)}</div>` 
+            : '';
+
+        const el = document.createElement('div');
+        el.className = "flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-700/50 last:border-0";
+        el.innerHTML = `
+            <span class="font-medium text-gray-700 dark:text-gray-300">${label}</span>
+            <div class="text-right flex flex-col gap-0.5">
+                ${incomeHtml}
+                ${expenseHtml}
+            </div>
+        `;
+        containerEl.appendChild(el);
+    });
 }
 
 function updateBudgetUI(totalExpense, monthlyBudget) {
@@ -322,41 +368,6 @@ function updateBudgetUI(totalExpense, monthlyBudget) {
     } else {
         els.budgetProgress.classList.add('hidden');
     }
-}
-
-function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Infinity) {
-    containerEl.innerHTML = '';
-    const sortedKeys = Object.keys(dataMap).sort().reverse();
-
-    if (sortedKeys.length === 0) {
-        containerEl.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No data yet.</p>';
-        return;
-    }
-
-    sortedKeys.slice(0, limit).forEach(key => {
-        const data = dataMap[key];
-        if (data.income === 0 && data.expense === 0) return;
-
-        let label = key;
-        if (formatter) {
-             const dateObj = new Date(key + (key.length === 7 ? '-02T00:00:00Z' : 'T00:00:00Z'));
-             label = formatter.format(dateObj);
-        }
-        
-        const incomeHtml = data.income > 0 ? `<div class="text-xs font-medium text-teal-600 dark:text-teal-400">+₹${data.income.toFixed(2)}</div>` : '';
-        const expenseHtml = data.expense > 0 ? `<div class="text-xs font-medium text-pink-600 dark:text-pink-400">-₹${data.expense.toFixed(2)}</div>` : '';
-
-        const el = document.createElement('div');
-        el.className = "flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-700/50 last:border-0";
-        el.innerHTML = `
-            <span class="font-medium text-gray-700 dark:text-gray-300">${label}</span>
-            <div class="text-right flex flex-col gap-0.5">
-                ${incomeHtml}
-                ${expenseHtml}
-            </div>
-        `;
-        containerEl.appendChild(el);
-    });
 }
 
 // --- THEME ---
