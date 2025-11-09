@@ -177,6 +177,21 @@
             </div>
             <div>
               <label
+                for="edit-type"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Type</label
+              >
+              <select
+                id="edit-type"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
+            <div>
+              <label
                 for="edit-item"
                 class="block text-sm font-medium text-gray-700"
                 >Item</label
@@ -431,29 +446,55 @@
               </p>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-              <h2 class="text-lg font-semibold mb-4">
-                Current Month's Expenses
-              </h2>
-              <div
-                id="total-expense"
-                class="text-4xl font-bold text-indigo-600 transition-colors duration-300"
+            <div class="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
+              <h2
+                class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100"
               >
-                ₹0.00
-              </div>
-              <div id="budget-progress" class="mt-4 hidden">
-                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                  <span id="budget-spent-text">Spent: ₹0.00</span>
-                  <span id="budget-remaining-text">Remaining: ₹0.00</span>
+                Current Month
+              </h2>
+
+              <div class="mb-4">
+                <span class="text-sm text-gray-500 dark:text-gray-400"
+                  >Net Balance</span
+                >
+                <div
+                  id="total-expense"
+                  class="text-4xl font-bold text-indigo-600 dark:text-teal-400 transition-colors duration-300"
+                >
+                  ₹0.00
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div
-                    id="budget-progress-bar"
-                    class="h-2.5 rounded-full transition-all duration-300"
-                    style="width: 0%"
-                  ></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div
+                  class="p-4 bg-teal-100 dark:bg-teal-900/30 rounded-lg border border-teal-200 dark:border-teal-800/30"
+                >
+                  <span
+                    class="block text-xs font-bold text-teal-800 dark:text-teal-400 uppercase tracking-wider"
+                    >Income</span
+                  >
+                  <span
+                    id="income-display"
+                    class="block text-lg font-bold text-teal-950 dark:text-teal-300 mt-1"
+                    >+₹0.00</span
+                  >
+                </div>
+                <div
+                  class="p-4 bg-pink-100 dark:bg-pink-900/30 rounded-lg border border-pink-200 dark:border-pink-800/30"
+                >
+                  <span
+                    class="block text-xs font-bold text-pink-800 dark:text-pink-400 uppercase tracking-wider"
+                    >Expense</span
+                  >
+                  <span
+                    id="expense-display"
+                    class="block text-lg font-bold text-pink-950 dark:text-pink-300 mt-1"
+                    >-₹0.00</span
+                  >
                 </div>
               </div>
+
+              <div id="budget-progress" class="mt-4 hidden"></div>
             </div>
 
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -702,14 +743,15 @@
             </select>
           </div>
           <div
-            class="flex-1 bg-indigo-50 p-4 rounded-lg flex flex-col justify-center items-center"
+            class="flex-1 bg-indigo-50 dark:bg-slate-700 p-4 rounded-lg flex flex-col justify-center items-center"
           >
-            <span class="text-sm font-medium text-indigo-700"
-              >Total Filtered Expenses</span
+            <span
+              class="text-sm font-medium text-indigo-700 dark:text-indigo-300"
+              >Filtered Net Balance</span
             >
             <div
               id="dashboard-total-expense"
-              class="text-3xl font-bold text-indigo-600"
+              class="text-3xl font-bold transition-colors"
             >
               ₹0.00
             </div>

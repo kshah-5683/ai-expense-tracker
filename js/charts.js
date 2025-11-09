@@ -1,263 +1,213 @@
 import { monthFormatter } from "./utils.js";
 
-// Global chart instances to allow destroying and redrawing
 let categoryPieChart = null;
 let trendBarChart = null;
 let trendYAxisChart = null;
 
 const CHART_COLORS = [
-    '#069494', // Teal (Primary)
-    '#FFCE1B', // Mustard Yellow (Retro Sunset)
-    '#FF69B4', // Bubblegum Pink
-    '#ADEBB3', // Mint Green (Lotus Garden)
-    '#AD56C4', // Violet (Hydrangea)
-    '#FF857A', // Coral (Lotus Garden)
-    '#CCFF00', // Electric Lime
-    '#BE5103'  // Burnt Orange (Retro Sunset)
+    '#069494', '#FFCE1B', '#FF69B4', '#ADEBB3', 
+    '#AD56C4', '#FF857A', '#CCFF00', '#BE5103'
 ];
 
-// Helper to get current theme text color for charts
 function getThemeTextColor() {
-    const isDark = document.documentElement.classList.contains('dark');
-    // Returns Muted Lavender for dark mode, Slate Gray for light mode
-    return isDark ? '#A39EBB' : '#64748B';
+    return document.documentElement.classList.contains('dark') ? '#A39EBB' : '#64748B';
 }
 
-// Updates dropdowns based on available data, then updates charts
-export function updateDashboard(allExpenses, yearFilterEl, monthFilterEl) {
-    populateFilters(allExpenses, yearFilterEl, monthFilterEl);
-    updateCharts(allExpenses, yearFilterEl.value, monthFilterEl.value);
+// --- MAIN UPDATE FUNCTION ---
+export function updateDashboard(allEntries, yearFilterEl, monthFilterEl) {
+    // 1. Populate filters using ALL entries (so you can find income entries too)
+    populateFilters(allEntries, yearFilterEl, monthFilterEl);
+    // 2. Update charts based on current selection
+    updateCharts(allEntries, yearFilterEl.value, monthFilterEl.value);
 }
 
-// Only updates charts (used when changing filters)
-export function updateCharts(allExpenses, selectedYear, selectedMonth) {
-    let filtered = allExpenses;
-    if (selectedYear !== "all") {
-        filtered = filtered.filter(exp => exp.date.startsWith(selectedYear));
-    }
-    if (selectedMonth !== "all") {
-        filtered = filtered.filter(exp => exp.date.startsWith(selectedMonth));
-    }
-
-    // Update dashboard total text
-    const total = filtered.reduce((sum, exp) => sum + (exp.price || 0), 0);
-    document.getElementById('dashboard-total-expense').textContent = `₹${total.toFixed(2)}`;
-
-    renderPieChart(filtered);
-    renderTrendChart(filtered, selectedMonth);
-}
-
-function populateFilters(expenses, yearFilterEl, monthFilterEl) {
-    const currentYearVal = yearFilterEl.value;
-    const currentMonthVal = monthFilterEl.value;
-
+// --- FILTER POPULATION ---
+function populateFilters(allEntries, yearFilterEl, monthFilterEl) {
+    const currentYear = yearFilterEl.value;
+    const currentMonth = monthFilterEl.value;
     const years = new Set();
     const months = new Set();
 
-    expenses.forEach(exp => {
+    allEntries.forEach(entry => {
+        // Robust check: ensure date exists and is at least YYYY-MM (7 chars)
+        if (!entry.date || entry.date.length < 7) return;
+
         try {
-            const date = new Date(exp.date + 'T00:00:00Z');
-            if (isNaN(date.getTime())) return;
-            
-            const yearStr = date.getFullYear().toString();
+            // 1. Safer string-based extraction for filters (avoids timezone issues)
+            const yearStr = entry.date.substring(0, 4);  // "2025" from "2025-11-08"
+            const monthStr = entry.date.substring(0, 7); // "2025-11"
+
             years.add(yearStr);
 
-            // Only collect months if a specific year is selected
-            if (currentYearVal !== 'all' && yearStr === currentYearVal) {
-                months.add(date.toISOString().slice(0, 7)); // YYYY-MM
+            // Only add to month list if it matches the selected year filter
+            if (currentYear === 'all' || yearStr === currentYear) {
+                months.add(monthStr);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Skipping invalid date for filter:", entry.date);
+        }
     });
 
     // Repopulate Year Filter
     yearFilterEl.innerHTML = '<option value="all">All Years</option>';
     Array.from(years).sort().reverse().forEach(year => {
-        yearFilterEl.innerHTML += `<option value="${year}" ${year === currentYearVal ? 'selected' : ''}>${year}</option>`;
+        const isSelected = year === currentYear ? 'selected' : '';
+        yearFilterEl.innerHTML += `<option value="${year}" ${isSelected}>${year}</option>`;
     });
 
-    // Handle Month Filter State
-    if (currentYearVal === 'all') {
-        // DISABLE if "All Years" is selected
+    // Repopulate Month Filter
+    if (currentYear === 'all') {
         monthFilterEl.innerHTML = '<option value="all">Select a Year First</option>';
         monthFilterEl.disabled = true;
-        monthFilterEl.classList.add('bg-gray-100', 'cursor-not-allowed'); // Visual feedback
+        monthFilterEl.classList.add('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-700');
     } else {
-        // ENABLE and populate if a specific year is selected
         monthFilterEl.disabled = false;
-        monthFilterEl.classList.remove('bg-gray-100', 'cursor-not-allowed');
-        
+        monthFilterEl.classList.remove('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-700');
         monthFilterEl.innerHTML = '<option value="all">All Months</option>';
-        Array.from(months).sort().reverse().forEach(month => {
-            const dateObj = new Date(month + '-02T00:00:00Z');
-            // Just show the month name since the year is already known
-            const label = dateObj.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
-            monthFilterEl.innerHTML += `<option value="${month}" ${month === currentMonthVal ? 'selected' : ''}>${label}</option>`;
+        
+        Array.from(months).sort().reverse().forEach(monthISO => {
+            // Create a safe date object for formatting the label (e.g., "November")
+            // Appending '-02' avoids timezone-related off-by-one errors
+            const dateObj = new Date(monthISO + '-02');
+            const label = dateObj.toLocaleString('default', { month: 'long' });
+            
+            const isSelected = monthISO === currentMonth ? 'selected' : '';
+            monthFilterEl.innerHTML += `<option value="${monthISO}" ${isSelected}>${label}</option>`;
         });
     }
 }
 
-function renderPieChart(filteredExpenses) {
-    const ctx = document.getElementById('category-pie-chart').getContext('2d');
-    const categoryData = {};
-    filteredExpenses.forEach(exp => {
-        const cat = exp.category || 'Other';
-        categoryData[cat] = (categoryData[cat] || 0) + exp.price;
-    });
+// --- CHART UPDATES ---
+export function updateCharts(allEntries, selectedYear, selectedMonth) {
+    // 1. Filter by Date
+    let filtered = allEntries.filter(e => e.date); // Ensure date exists
+    if (selectedYear !== "all") filtered = filtered.filter(e => e.date.startsWith(selectedYear));
+    if (selectedMonth !== "all") filtered = filtered.filter(e => e.date.startsWith(selectedMonth));
 
-    const sortedCategories = Object.entries(categoryData).sort((a, b) => b[1] - a[1]);
+    // 2. Split Data
+    const incomeEntries = filtered.filter(e => e.type === 'income');
+    const expenseEntries = filtered.filter(e => !e.type || e.type === 'expense');
+
+    // 3. Update Net Balance Display
+    const totalIncome = incomeEntries.reduce((sum, e) => sum + (e.price || 0), 0);
+    const totalExpense = expenseEntries.reduce((sum, e) => sum + (e.price || 0), 0);
+    const netBalance = totalIncome - totalExpense;
+    
+    const totalEl = document.getElementById('dashboard-total-expense');
+    totalEl.textContent = `₹${netBalance.toFixed(2)}`;
+    // Dynamic coloring for net balance
+    totalEl.className = 'text-3xl font-bold transition-colors ' + 
+        (netBalance >= 0 ? 'text-indigo-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400');
+
+    // 4. Render Charts
+    renderPieChart(expenseEntries); // Pie = Expenses Only
+    renderTrendChart(incomeEntries, expenseEntries, selectedMonth); // Trend = Both
+}
+
+function renderPieChart(expenseEntries) {
+    const ctx = document.getElementById('category-pie-chart').getContext('2d');
+    const dataMap = {};
+    expenseEntries.forEach(e => dataMap[e.category || 'Other'] = (dataMap[e.category || 'Other'] || 0) + e.price);
+    const sorted = Object.entries(dataMap).sort((a, b) => b[1] - a[1]);
 
     if (categoryPieChart) categoryPieChart.destroy();
     categoryPieChart = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: sortedCategories.map(e => e[0]),
-            datasets: [{
-                label: 'Expenses by Category',
-                data: sortedCategories.map(e => e[1]),
-                backgroundColor: CHART_COLORS,
-            }]
+            labels: sorted.map(e => e[0]),
+            datasets: [{ data: sorted.map(e => e[1]), backgroundColor: CHART_COLORS }]
         },
         options: {
             responsive: true,
-            // Ensures the chart doesn't stretch weirdly when centering
             maintainAspectRatio: false,
-            plugins: {
-                legend: { 
-                    position: 'right',
-                    labels: {
-                        color: getThemeTextColor()
-                    }
-                },
-            }
+            plugins: { legend: { position: 'right', labels: { color: getThemeTextColor() } } }
         }
     });
 }
 
-function renderTrendChart(filteredExpenses, selectedMonth) {
+function renderTrendChart(incomeEntries, expenseEntries, selectedMonth) {
     const mainCtx = document.getElementById('trend-bar-chart').getContext('2d');
     const axisCtx = document.getElementById('trend-yaxis-overlay').getContext('2d');
     const chartArea = document.getElementById('trend-chart-area');
 
-    // 1. Update Title
-    const titleEl = document.getElementById('trend-chart-title');
-    if (titleEl) {
-        titleEl.textContent = selectedMonth !== 'all' ? 'Daily Expense Trend' : 'Monthly Expense Trend';
-    }
-
-    // 2. Process Data
-    const trendData = {};
-    filteredExpenses.forEach(exp => {
-         const key = (selectedMonth !== 'all') ? exp.date : exp.date.slice(0, 7);
-         trendData[key] = (trendData[key] || 0) + exp.price;
+    // 1. Prepare Combined Data (grouped by date)
+    const trendMap = {};
+    [...incomeEntries, ...expenseEntries].forEach(e => {
+         const key = (selectedMonth !== 'all') ? e.date : e.date.slice(0, 7);
+         if (!trendMap[key]) trendMap[key] = { income: 0, expense: 0 };
+         if (e.type === 'income') trendMap[key].income += e.price;
+         else trendMap[key].expense += e.price;
     });
-    const sortedTrend = Object.entries(trendData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
-    const labels = sortedTrend.map(e => e[0]);
-    const dataValues = sortedTrend.map(e => e[1]);
 
-    // 3. Calculate common Y-axis Max
-    const maxValue = Math.max(...dataValues, 0);
-    const suggestedMax = maxValue * 1.1; // 10% headroom
+    const sortedKeys = Object.keys(trendMap).sort();
+    const incomeData = sortedKeys.map(k => trendMap[k].income);
+    const expenseData = sortedKeys.map(k => trendMap[k].expense);
+    
+    // 2. Calculate Max for Y-Axis (looking at both datasets)
+    const maxVal = Math.max(...incomeData, ...expenseData, 0) * 1.1;
 
-    // 4. Responsive Scroll Logic
+    // 3. Responsive Scroll
     const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
     if (isSmallScreen) {
-        const dataPoints = labels.length;
         const visibleWidth = chartArea.parentElement.clientWidth;
-        let requiredWidth = visibleWidth;
-        if (selectedMonth === 'all') {
-            if (dataPoints > 6) requiredWidth = (visibleWidth / 6) * dataPoints;
+        const dataPoints = sortedKeys.length;
+        // Show 6 months or 7 days max at a time
+        const divisor = selectedMonth === 'all' ? 6 : 7;
+        if (dataPoints > divisor) {
+            chartArea.style.width = `${(visibleWidth / divisor) * dataPoints}px`;
         } else {
-            if (dataPoints > 7) requiredWidth = (visibleWidth / 7) * dataPoints;
+             chartArea.style.width = '100%';
         }
-        chartArea.style.width = `${requiredWidth}px`;
     } else {
         chartArea.style.width = '100%';
     }
 
-    // Shared config
-    const commonLayout = { padding: { top: 10, bottom: 10, left: 0, right: 0 } };
-    const themeTextColor = getThemeTextColor();
-    const themeGridColor = document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0';
+    // 4. Render
+    const commonLayout = { padding: { top: 10, bottom: 10, left: 0, right: 10 } };
+    const themeText = getThemeTextColor();
 
-    // --- RENDER 1: FIXED Y-AXIS OVERLAY ---
+    // Y-Axis Overlay
     if (trendYAxisChart) trendYAxisChart.destroy();
     trendYAxisChart = new Chart(axisCtx, {
-        type: 'bar',
-        data: { labels: [], datasets: [] },
+        type: 'bar', data: { labels: [], datasets: [] },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: commonLayout,
-            plugins: { legend: { display: false }, title: { display: false }, tooltip: { enabled: false } },
+            responsive: true, maintainAspectRatio: false, layout: { padding: { top: 10, bottom: 10 } },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
             scales: {
                 x: { display: false },
                 y: {
-                    beginAtZero: true,
-                    suggestedMax: suggestedMax,
-                    afterFit: (scale) => { scale.width = 50; },
-                    ticks: { 
-                        color: themeTextColor,
-                        maxTicksLimit: 6,
-                        callback: function(value) {
-                             if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-                             return value;
-                        }
-                    },
-                    grid: { drawBorder: false, display: false },
-                    // ADDED: Y-Axis Title
-                    title: { 
-                        display: true, 
-                        text: 'Amount (₹)', 
-                        color: themeTextColor,
-                        font: { size: 10 } // Kept small to fit in the overlay
-                    }
+                    beginAtZero: true, suggestedMax: maxVal, afterFit: (s) => { s.width = 50; },
+                    ticks: { color: themeText, maxTicksLimit: 6, callback: v => v >= 1000 ? (v/1000).toFixed(1).replace(/\.0$/, '') + 'k' : v },
+                    grid: { display: false }
                 }
             }
         }
     });
 
-    // --- RENDER 2: MAIN SCROLLABLE CHART ---
+    // Main Chart (Dual Dataset)
     if (trendBarChart) trendBarChart.destroy();
     trendBarChart = new Chart(mainCtx, {
         type: 'bar',
         data: {
-            labels: labels,
-            datasets: [{
-                data: dataValues,
-                backgroundColor: '#069494',
-                borderRadius: 4,
-            }]
+            labels: sortedKeys,
+            datasets: [
+                { label: 'Income', data: incomeData, backgroundColor: '#069494', borderRadius: 4 }, // Green
+                { label: 'Expense', data: expenseData, backgroundColor: '#FF69B4', borderRadius: 4 }  // Teal
+            ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: commonLayout,
-            plugins: { legend: { display: false }, title: { display: false } },
+            responsive: true, maintainAspectRatio: false, layout: commonLayout,
+            plugins: { legend: { display: false } }, // Hide default legend, maybe add custom one later if needed
             scales: {
                 x: {
                     type: 'time',
-                    time: {
-                        unit: selectedMonth !== 'all' ? 'day' : 'month',
-                        tooltipFormat: 'PP',
-                        // ADDED: Friendly date formats
-                        displayFormats: {
-                            month: 'MMM yyyy', // e.g., Nov 2025
-                            day: 'dd MMM'      // e.g., 08 Nov
-                        }
-                    },
-                    ticks: {
-                        color: themeTextColor,
-                        autoSkip: false,
-                        maxRotation: 45,
-                        minRotation: 0
-                    },
+                    time: { unit: selectedMonth !== 'all' ? 'day' : 'month', displayFormats: { month: 'MMM yyyy', day: 'dd MMM' } },
+                    ticks: { color: themeText, autoSkip: false, maxRotation: 45, minRotation: 0 },
                     grid: { display: false }
                 },
                 y: {
-                    beginAtZero: true,
-                    suggestedMax: suggestedMax,
-                    display: false, // Hide Y labels here (they are in the overlay)
-                    grid: { color: themeGridColor, drawBorder: false }
+                    beginAtZero: true, suggestedMax: maxVal, display: false,
+                    grid: { color: document.documentElement.classList.contains('dark') ? '#3F3B52' : '#E2E8F0', drawBorder: false }
                 }
             }
         }
