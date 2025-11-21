@@ -15,15 +15,17 @@ const state = {
     unsubExpenses: null,
     unsubBudget: null,
     // Temporary storage for the expense currently being deleted
-    expenseIdToDelete: null
+    expenseIdToDelete: null,
+    // NEW: Store pending image attachments
+    pendingAttachments: []
 };
 
 // --- Event Handlers ---
 
 async function handleAnalyzeClick() {
     const rawText = UI.els.expenseInput.value;
-    if (!rawText.trim()) {
-        UI.showError("Please paste in your expense notes first.");
+    if (!rawText.trim() && state.pendingAttachments.length === 0) {
+        UI.showError("Please paste in your expense notes or upload an image first.");
         return;
     }
     if (!state.currentUser) {
@@ -39,18 +41,19 @@ async function handleAnalyzeClick() {
         const historyContext = generateKnowledgeBase(state.allExpenses);
 
         // 2. Pass it to the AI
-        const expenses = await Data.analyzeTextWithAI(rawText, historyContext);
-        
+        const expenses = await Data.analyzeTextWithAI(rawText, historyContext, state.pendingAttachments);
+
         if (!expenses || expenses.length === 0) {
             throw new Error("The AI could not find any expenses in your notes.");
         }
 
-        // (Removed the old manual override loop here, it's no longer needed!)
-
         const savePromises = expenses.map(exp => Data.addExpense(state.currentUser.uid, exp));
         await Promise.all(savePromises);
-        
+
         UI.els.expenseInput.value = '';
+        // Clear attachments
+        state.pendingAttachments = [];
+        renderAttachments();
     } catch (error) {
         console.error("Analysis failed:", error);
         UI.showError(`Analysis failed: ${error.message}`);
@@ -67,17 +70,62 @@ async function handleFileUpload(e) {
     UI.showFileLoading(true);
 
     try {
-        const text = await Data.parseFile(file);
-        // Append parsed text to the textarea
-        UI.els.expenseInput.value = (UI.els.expenseInput.value + '\n\n' + text).trim();
+        if (file.type.startsWith('image/')) {
+            // Handle Image
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64String = event.target.result.split(',')[1]; // Strip "data:image/jpeg;base64,"
+                state.pendingAttachments.push({
+                    mimeType: file.type,
+                    data: base64String,
+                    previewUrl: event.target.result // Keep full URL for preview
+                });
+                renderAttachments();
+                UI.showFileLoading(false);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // Handle Document (Text/PDF/Docx)
+            const text = await Data.parseFile(file);
+            // Append parsed text to the textarea
+            UI.els.expenseInput.value = (UI.els.expenseInput.value + '\n\n' + text).trim();
+            UI.showFileLoading(false);
+        }
     } catch (error) {
         console.error("File read error:", error);
         UI.showError(error.message);
-    } finally {
         UI.showFileLoading(false);
+    } finally {
         // Reset file input so the same file can be selected again if needed
         UI.els.fileUploadInput.value = null;
     }
+}
+
+function renderAttachments() {
+    const container = document.getElementById('attachments-preview');
+    if (!container) return;
+
+    container.innerHTML = '';
+    state.pendingAttachments.forEach((att, index) => {
+        const chip = document.createElement('div');
+        chip.className = "relative inline-block";
+
+        const img = document.createElement('img');
+        img.src = att.previewUrl;
+        img.className = "h-20 w-20 object-cover rounded-md border border-gray-300 shadow-sm";
+
+        const removeBtn = document.createElement('button');
+        removeBtn.innerHTML = "&times;";
+        removeBtn.className = "absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 focus:outline-none";
+        removeBtn.onclick = () => {
+            state.pendingAttachments.splice(index, 1);
+            renderAttachments();
+        };
+
+        chip.appendChild(img);
+        chip.appendChild(removeBtn);
+        container.appendChild(chip);
+    });
 }
 
 // Debounce budget saving to avoid too many Firestore writes while typing
@@ -125,7 +173,7 @@ function clearApplicationState() {
     state.monthlyBudget = 0;
     if (state.unsubExpenses) state.unsubExpenses();
     if (state.unsubBudget) state.unsubBudget();
-    
+
     UI.els.budgetInput.value = '';
     updateApplicationData(); // Will render empty states
 }
@@ -175,10 +223,10 @@ function init() {
     });
     window.addEventListener('click', () => UI.els.downloadMenu.classList.add('hidden'));
     UI.els.downloadPdfBtn.addEventListener('click', () => {
-        try { Export.generatePDF(state.allExpenses); } catch(e) { UI.showError(e.message); }
+        try { Export.generatePDF(state.allExpenses); } catch (e) { UI.showError(e.message); }
     });
     UI.els.downloadCsvBtn.addEventListener('click', () => {
-        try { Export.generateCSV(state.allExpenses); } catch(e) { UI.showError(e.message); }
+        try { Export.generateCSV(state.allExpenses); } catch (e) { UI.showError(e.message); }
     });
 
     // Auth Events
@@ -219,7 +267,7 @@ function init() {
     UI.els.editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!state.currentUser) return;
-        
+
         const updatedData = {
             date: UI.els.editDate.value,
             item: UI.els.editItem.value,
