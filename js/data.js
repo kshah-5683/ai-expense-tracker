@@ -1,54 +1,14 @@
-import { 
-    collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, query 
+import { db, APP_ID } from './firebase.js';
+import {
+    collection,
+    query,
+    onSnapshot,
+    doc,
+    addDoc,
+    setDoc,
+    deleteDoc
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { db, APP_ID } from "./firebase.js";
 
-// --- AI Analysis ---
-// NOW ACCEPTS A SECOND ARGUMENT: knowledgeBase
-export async function analyzeTextWithAI(rawText, knowledgeBase = "") {
-    const todayISO = new Date().toISOString().split('T')[0];
-    
-    const textWithContext = `
-CONTEXT: Today's date is ${todayISO}.
-USER HISTORICAL MAPPINGS: ${knowledgeBase || "None available yet."}
-
-TASK: Extract expenses from the text below following this STRICT PROCESS:
-
-1. EXTRACT: Identify item name EXACTLY as entered.
-2. NORMALIZE: Fix typos (internal use only).
-3. CATEGORIZE (PRIORITY RULE): 
-   - Check USER HISTORICAL MAPPINGS first. 
-   - If an exact match exists, USE THAT CATEGORY.
-   - If a *similar* item exists in mappings, USE THAT SAME CATEGORY (e.g., if history has "Coffee":"Fuel", then categorized new entry "Tea" as "Fuel" too).
-   - Only use standard categories if NO relevant past mapping is found.
-4. OUTPUT: JSON with exact item name and assigned category.
-
-USER TEXT TO PROCESS:
-${rawText}
-`.trim();
-
-    const response = await fetch("/api/getExpenses", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText: textWithContext })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "The AI analysis function failed.");
-    }
-
-    const result = await response.json();
-    if (result.expenses) {
-        return result.expenses;
-    } else {
-        throw new Error("Failed to get a valid response from the AI function.");
-    }
-}
-
-// --- Firestore Operations ---
-
-// Real-time listener for the expenses collection
 export function attachExpenseListener(userId, onData, onError) {
     const collectionPath = `artifacts/${APP_ID}/users/${userId}/expenses`;
     const q = query(collection(db, collectionPath));
@@ -139,4 +99,44 @@ async function readDocxFile(file) {
     const arrayBuffer = await file.arrayBuffer();
     const result = await window.mammoth.extractRawText({ arrayBuffer: arrayBuffer });
     return result.value;
+}
+
+export async function analyzeTextWithAI(rawText, knowledgeBase = "", images = []) {
+    const todayISO = new Date().toISOString().split('T')[0];
+
+    const textWithContext = `
+CONTEXT: Today's date is ${todayISO}.
+USER HISTORICAL MAPPINGS: ${knowledgeBase || "None available yet."}
+
+TASK: Extract expenses from the text and/or images provided below following this STRICT PROCESS:
+
+1. EXTRACT: Identify item name EXACTLY as entered (or visible in image).
+2. NORMALIZE: Fix typos (internal use only).
+3. CATEGORIZE (PRIORITY RULE): 
+   - Check USER HISTORICAL MAPPINGS first. 
+   - If an exact match exists, USE THAT CATEGORY.
+   - If a *similar* item exists in mappings, USE THAT SAME CATEGORY (e.g., if history has "Coffee":"Fuel", then categorized new entry "Tea" as "Fuel" too).
+   - Only use standard categories if NO relevant past mapping is found.
+4. OUTPUT: JSON with exact item name and assigned category.
+
+USER INPUT (Text and/or Images):
+${rawText}
+`.trim();
+
+    const response = await fetch("/api/getExpenses", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            rawText: textWithContext,
+            images: images
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "AI service error");
+    }
+
+    const data = await response.json();
+    return data.expenses || [];
 }

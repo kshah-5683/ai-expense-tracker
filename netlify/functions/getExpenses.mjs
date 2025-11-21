@@ -23,10 +23,10 @@ export default async (req) => {
     }
 
     try {
-        // 2. Get the rawText from the client's request
-        const { rawText } = await req.json();
-        if (!rawText) {
-            return new Response(JSON.stringify({ error: "No text provided." }), {
+        // 2. Get the rawText and images from the client's request
+        const { rawText, images } = await req.json();
+        if (!rawText && (!images || images.length === 0)) {
+            return new Response(JSON.stringify({ error: "No text or images provided." }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -35,7 +35,7 @@ export default async (req) => {
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
 
         // 3. Construct the same system prompt and payload here, on the server
-        const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text.
+        const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text and images (receipts/bills).
 - Today's date is ${new Date().toLocaleDateString()}.
 - The year is ${new Date().getFullYear()}.
 - All expenses are in Rupees (₹).
@@ -56,10 +56,26 @@ JSON:
   {"date": "2025-11-04", "item": "Coffee", "price": 150.50, "category": "Food"},
   {"date": "2025-11-05", "item": "Uber ride", "price": 450.00, "category": "Transport"}
 ]`;
-            
+
+        // Construct parts array (Text + Images)
+        const parts = [{ text: rawText || "" }];
+
+        if (images && Array.isArray(images)) {
+            images.forEach(img => {
+                if (img.data && img.mimeType) {
+                    parts.push({
+                        inlineData: {
+                            mimeType: img.mimeType,
+                            data: img.data
+                        }
+                    });
+                }
+            });
+        }
+
         const payload = {
             contents: [{
-                parts: [{ text: rawText }]
+                parts: parts
             }],
             systemInstruction: {
                 parts: [{ text: systemPrompt }]
