@@ -284,56 +284,37 @@ function init() {
         }
     });
 
-    // Delete Modal Events
-    UI.els.closeDeleteModalBtn.addEventListener('click', () => UI.toggleDeleteModal(false));
-    UI.els.deleteCancelBtn.addEventListener('click', () => UI.toggleDeleteModal(false));
-    UI.els.deleteConfirmBtn.addEventListener('click', async () => {
-        if (state.currentUser && state.expenseIdToDelete) {
-            await Data.deleteExpense(state.currentUser.uid, state.expenseIdToDelete);
-        }
-        UI.toggleDeleteModal(false);
-        state.expenseIdToDelete = null;
-    });
+    // Search Functionality
+    if (UI.els.searchInput) {
+        UI.els.searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (!query) {
+                UI.renderExpenseTable(state.allExpenses);
+                return;
+            }
 
-    // Event Delegation for dynamic table buttons
-    UI.els.expenseTableBody.addEventListener('click', (e) => {
-        // Handle Delete Click
-        const deleteBtn = e.target.closest('.delete-expense-btn');
-        if (deleteBtn) {
-            state.expenseIdToDelete = deleteBtn.dataset.id;
-            UI.toggleDeleteModal(true, deleteBtn.dataset.item);
-            return;
-        }
-        // Handle Edit Click
-        const editBtn = e.target.closest('.edit-expense-btn');
-        if (editBtn) {
-            const expenseData = {
-                id: editBtn.dataset.id,
-                date: editBtn.dataset.date,
-                item: editBtn.dataset.item,
-                category: editBtn.dataset.category,
-                price: editBtn.dataset.price
-            };
-            UI.toggleEditModal(true, expenseData);
-        }
-    });
+            // @ts-ignore
+            const fuse = new window.Fuse(state.allExpenses, {
+                keys: ['item', 'category'],
+                threshold: 0.4
+            });
 
-    // 2. Initialize Auth State Listener (Kickstarts the app)
-    Auth.initAuthListener(
-        (user) => {
-            // On Login
-            console.log("User authenticated:", user.uid);
-            state.currentUser = user;
-            UI.updateAuthUI(user);
+            const result = fuse.search(query);
+            const filteredExpenses = result.map(r => r.item);
+            UI.renderExpenseTable(filteredExpenses);
+        });
+    }
+
+    // Setup Auth Listener
+    Auth.initAuthListener((user) => {
+        state.currentUser = user;
+        UI.updateAuthUI(user);
+        if (user) {
             setupUserDataListeners(user.uid);
-        },
-        () => {
-            // On Logout
-            console.log("User signed out");
+        } else {
             clearApplicationState();
-            UI.updateAuthUI(null);
         }
-    );
+    });
 }
 
 // Start the app when DOM is ready

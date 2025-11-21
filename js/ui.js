@@ -61,6 +61,7 @@ export const els = {
     errorIndicator: document.getElementById('error-indicator'),
     errorMessage: document.getElementById('error-message'),
     closeErrorBtn: document.getElementById('close-error-button'),
+    searchInput: document.getElementById('search-input'),
 };
 
 // --- General UI Actions ---
@@ -91,28 +92,14 @@ export function showError(message) {
 
 export function hideError() {
     els.errorIndicator.classList.add('hidden');
+    els.errorMessage.textContent = '';
 }
 
-// --- Tab Navigation ---
-export function switchMainTab(tab) {
-    if (tab === 'tracker') {
-        els.trackerTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
-        els.trackerTabBtn.classList.remove('border-transparent', 'text-gray-500');
-        els.dashboardTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
-        els.dashboardTabBtn.classList.add('border-transparent', 'text-gray-500');
-        els.mainTrackerView.classList.remove('hidden');
-        els.mainDashboardView.classList.add('hidden');
-    } else {
-        els.dashboardTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
-        els.dashboardTabBtn.classList.remove('border-transparent', 'text-gray-500');
-        els.trackerTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
-        els.trackerTabBtn.classList.add('border-transparent', 'text-gray-500');
-        els.dashboardView.classList.remove('hidden');
-        els.trackerView.classList.add('hidden');
-    }
+export function toggleAuthModal(show) {
+    els.authModal.classList.toggle('hidden', !show);
+    if (!show) els.authError.textContent = '';
 }
 
-// --- Auth UI ---
 export function updateAuthUI(user) {
     if (user) {
         els.userIdDisplay.textContent = user.email;
@@ -127,11 +114,6 @@ export function updateAuthUI(user) {
         switchMainTab('tracker');
         els.expenseTableBody.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500 dark:text-gray-400">Log in to see your expenses.</td></tr>';
     }
-}
-
-export function toggleAuthModal(show) {
-    els.authModal.classList.toggle('hidden', !show);
-    if (!show) els.authError.textContent = '';
 }
 
 export function switchAuthTab(tab) {
@@ -150,6 +132,24 @@ export function switchAuthTab(tab) {
         els.loginTab.classList.add('border-transparent', 'text-gray-500');
         els.registerForm.classList.remove('hidden');
         els.loginForm.classList.add('hidden');
+    }
+}
+
+export function switchMainTab(tab) {
+    if (tab === 'tracker') {
+        els.trackerTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
+        els.trackerTabBtn.classList.remove('border-transparent', 'text-gray-500');
+        els.dashboardTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
+        els.dashboardTabBtn.classList.add('border-transparent', 'text-gray-500');
+        els.trackerView.classList.remove('hidden');
+        els.dashboardView.classList.add('hidden');
+    } else {
+        els.dashboardTabBtn.classList.add('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
+        els.dashboardTabBtn.classList.remove('border-transparent', 'text-gray-500');
+        els.trackerTabBtn.classList.remove('border-teal-500', 'text-teal-600', 'dark:text-teal-400');
+        els.trackerTabBtn.classList.add('border-transparent', 'text-gray-500');
+        els.dashboardView.classList.remove('hidden');
+        els.trackerView.classList.add('hidden');
     }
 }
 
@@ -232,12 +232,12 @@ export function renderSummaries(expenses, monthlyBudget) {
             if (month === currentMonthISO) {
                 currentMonthTotal += exp.price;
             }
-        } catch (e) {}
+        } catch (e) { }
     });
 
     // --- Update Current Month & Budget UI ---
     els.totalExpense.textContent = `₹${currentMonthTotal.toFixed(2)}`;
-    
+
     // Remove ALL potential old color classes
     els.totalExpense.classList.remove('text-indigo-600', 'text-green-600', 'text-yellow-500', 'text-red-600', 'text-teal-600', 'text-pink-600', 'dark:text-teal-400', 'dark:text-pink-400');
     els.budgetProgressBar.classList.remove('bg-indigo-600', 'bg-green-600', 'bg-yellow-500', 'bg-red-600', 'bg-teal-500', 'bg-pink-500');
@@ -288,7 +288,7 @@ function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Inf
                 const dateObj = new Date(key + (key.length === 7 ? '-02T00:00:00Z' : 'T00:00:00Z'));
                 label = formatter.format(dateObj);
             }
-            
+
             const el = document.createElement('div');
             el.className = "flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700";
             el.innerHTML = `
@@ -311,7 +311,7 @@ export function toggleTheme() {
 export function initTheme() {
     const userPref = localStorage.getItem('color-theme');
     const systemPrefDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
+
     if (userPref === 'dark' || (!userPref && systemPrefDark)) {
         document.documentElement.classList.add('dark');
         updateThemeIcons(true);
