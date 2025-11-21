@@ -6,17 +6,13 @@ import * as Export from './export.js';
 import { debounce, generateKnowledgeBase } from './utils.js';
 
 // --- Application State ---
-// Centralized state management replaces scattered global variables
 const state = {
     currentUser: null,
     allExpenses: [],
     monthlyBudget: 0,
-    // Store unsubscribe functions to detach listeners on logout
     unsubExpenses: null,
     unsubBudget: null,
-    // Temporary storage for the expense currently being deleted
     expenseIdToDelete: null,
-    // NEW: Store pending image attachments
     pendingAttachments: []
 };
 
@@ -37,10 +33,7 @@ async function handleAnalyzeClick() {
     UI.showLoading(true);
 
     try {
-        // 1. Generate the knowledge base from current complete history
         const historyContext = generateKnowledgeBase(state.allExpenses);
-
-        // 2. Pass it to the AI
         const expenses = await Data.analyzeTextWithAI(rawText, historyContext, state.pendingAttachments);
 
         if (!expenses || expenses.length === 0) {
@@ -51,7 +44,6 @@ async function handleAnalyzeClick() {
         await Promise.all(savePromises);
 
         UI.els.expenseInput.value = '';
-        // Clear attachments
         state.pendingAttachments = [];
         renderAttachments();
     } catch (error) {
@@ -71,23 +63,20 @@ async function handleFileUpload(e) {
 
     try {
         if (file.type.startsWith('image/')) {
-            // Handle Image
             const reader = new FileReader();
             reader.onload = (event) => {
-                const base64String = event.target.result.split(',')[1]; // Strip "data:image/jpeg;base64,"
+                const base64String = event.target.result.split(',')[1];
                 state.pendingAttachments.push({
                     mimeType: file.type,
                     data: base64String,
-                    previewUrl: event.target.result // Keep full URL for preview
+                    previewUrl: event.target.result
                 });
                 renderAttachments();
                 UI.showFileLoading(false);
             };
             reader.readAsDataURL(file);
         } else {
-            // Handle Document (Text/PDF/Docx)
             const text = await Data.parseFile(file);
-            // Append parsed text to the textarea
             UI.els.expenseInput.value = (UI.els.expenseInput.value + '\n\n' + text).trim();
             UI.showFileLoading(false);
         }
@@ -96,7 +85,6 @@ async function handleFileUpload(e) {
         UI.showError(error.message);
         UI.showFileLoading(false);
     } finally {
-        // Reset file input so the same file can be selected again if needed
         UI.els.fileUploadInput.value = null;
     }
 }
@@ -128,30 +116,24 @@ function renderAttachments() {
     });
 }
 
-// Debounce budget saving to avoid too many Firestore writes while typing
 const handleBudgetInput = debounce((e) => {
     if (!state.currentUser) return;
     const amount = parseFloat(e.target.value) || 0;
     Data.saveBudget(state.currentUser.uid, amount);
-    // Note: No need to manually update UI here, the real-time listener will catch the change
 }, 1000);
 
 // --- Initialization & State Management ---
 
-// Called whenever new data arrives from Firestore
 const updateApplicationData = debounce(() => {
-    // Update Views
     UI.renderExpenseTable(state.allExpenses);
     UI.renderSummaries(state.allExpenses, state.monthlyBudget);
     Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
 }, 250);
 
 function setupUserDataListeners(userId) {
-    // Detach previous listeners if they exist
     if (state.unsubExpenses) state.unsubExpenses();
     if (state.unsubBudget) state.unsubBudget();
 
-    // Attach new listeners
     state.unsubExpenses = Data.attachExpenseListener(userId, (expenses) => {
         state.allExpenses = expenses;
         updateApplicationData();
@@ -159,7 +141,6 @@ function setupUserDataListeners(userId) {
 
     state.unsubBudget = Data.attachBudgetListener(userId, (amount) => {
         state.monthlyBudget = amount;
-        // Only update the input if the user isn't currently typing in it
         if (document.activeElement !== UI.els.budgetInput) {
             UI.els.budgetInput.value = amount > 0 ? amount : '';
         }
@@ -174,167 +155,212 @@ function clearApplicationState() {
     if (state.unsubExpenses) state.unsubExpenses();
     if (state.unsubBudget) state.unsubBudget();
 
-    UI.els.budgetInput.value = '';
-    updateApplicationData(); // Will render empty states
+    if (UI.els.budgetInput) {
+        UI.els.budgetInput.value = '';
+    }
+    updateApplicationData();
 }
 
 // --- Main Entry Point ---
 function init() {
     UI.initTheme();
-    // 1. Attach Global Event Listeners
-    // NEW: Toggle theme AND refresh charts to apply new text colors
-    UI.els.themeToggleBtn.addEventListener('click', () => {
-        UI.toggleTheme();
-        // Force charts to re-render with new theme colors
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, UI.els.monthFilter.value);
-    });
-    UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
-    UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
-    UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
-    UI.els.fileUploadInput.addEventListener('change', handleFileUpload);
-    UI.els.budgetInput.addEventListener('input', handleBudgetInput);
 
-    // Tab Navigation
-    UI.els.trackerTabBtn.addEventListener('click', () => UI.switchMainTab('tracker'));
-    UI.els.dashboardTabBtn.addEventListener('click', () => {
-        UI.switchMainTab('dashboard');
-        // Ensure charts resize correctly when becoming visible
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, UI.els.monthFilter.value);
-    });
+    if (UI.els.themeToggleBtn) {
+        UI.els.themeToggleBtn.addEventListener('click', () => {
+            UI.toggleTheme();
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, UI.els.monthFilter?.value);
+        });
+    }
 
-    // Dashboard Filters
-    UI.els.yearFilter.addEventListener('change', (e) => {
-        // If switching back to "All Years", reset month filter to "all"
-        if (e.target.value === 'all') {
-            UI.els.monthFilter.value = 'all';
-        }
-        Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
-    });
-    UI.els.monthFilter.addEventListener('change', (e) => {
-        // If a specific month is chosen, force year to 'all' to avoid conflicting filters
-        if (e.target.value !== 'all') UI.els.yearFilter.value = 'all';
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, e.target.value);
-    });
+    if (UI.els.analyzeBtn) {
+        UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
+    }
 
-    // Download Menu
-    UI.els.downloadDropdown.addEventListener('click', (e) => {
-        e.stopPropagation();
-        UI.els.downloadMenu.classList.toggle('hidden');
-    });
-    window.addEventListener('click', () => UI.els.downloadMenu.classList.add('hidden'));
-    UI.els.downloadPdfBtn.addEventListener('click', () => {
-        try { Export.generatePDF(state.allExpenses); } catch (e) { UI.showError(e.message); }
-    });
-    UI.els.downloadCsvBtn.addEventListener('click', () => {
-        try { Export.generateCSV(state.allExpenses); } catch (e) { UI.showError(e.message); }
-    });
+    if (UI.els.closeErrorBtn) {
+        UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
+    }
 
-    // Auth Events
-    UI.els.loginBtn.addEventListener('click', () => UI.toggleAuthModal(true));
-    UI.els.closeAuthModalBtn.addEventListener('click', () => UI.toggleAuthModal(false));
-    UI.els.loginTab.addEventListener('click', () => UI.switchAuthTab('login'));
-    UI.els.registerTab.addEventListener('click', () => UI.switchAuthTab('register'));
-    UI.els.logoutBtn.addEventListener('click', Auth.logoutUser);
+    if (UI.els.fileUploadBtn && UI.els.fileUploadInput) {
+        UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
+        UI.els.fileUploadInput.addEventListener('change', handleFileUpload);
+    }
 
-    UI.els.loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try { await Auth.loginUser(e.target.email.value, e.target.password.value); }
-        catch (error) { UI.els.authError.textContent = error.message; }
-    });
-    UI.els.registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
-        catch (error) { UI.els.authError.textContent = error.message; }
-    });
-    // Forgot Password
-    UI.els.forgotPasswordLink.addEventListener('click', async () => {
-        const email = UI.els.loginEmailInput.value.trim();
-        if (!email) {
-            UI.els.authError.textContent = "Please enter your email address first.";
-            return;
-        }
-        try {
-            await Auth.sendPasswordReset(email);
-            alert(`Password reset email sent to ${email}. Check your inbox.`);
-        } catch (error) {
-            console.error("Reset failed:", error);
-            UI.els.authError.textContent = error.message;
-        }
-    });
-    // Edit Modal Events
-    UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
-    UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));
-    UI.els.editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!state.currentUser) return;
+    if (UI.els.budgetInput) {
+        UI.els.budgetInput.addEventListener('input', handleBudgetInput);
+    }
 
-        const updatedData = {
-            date: UI.els.editDate.value,
-            item: UI.els.editItem.value,
-            category: UI.els.editCategory.value,
-            price: parseFloat(UI.els.editPrice.value) || 0
-        };
+    if (UI.els.trackerTabBtn) {
+        UI.els.trackerTabBtn.addEventListener('click', () => UI.switchMainTab('tracker'));
+    }
 
-        try {
-            await Data.updateExpense(state.currentUser.uid, UI.els.editId.value, updatedData);
-            UI.toggleEditModal(false);
-        } catch (error) {
-            console.error("Update failed:", error);
-            alert("Failed to update expense.");
-        }
-    });
+    if (UI.els.dashboardTabBtn) {
+        UI.els.dashboardTabBtn.addEventListener('click', () => {
+            UI.switchMainTab('dashboard');
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, UI.els.monthFilter?.value);
+        });
+    }
 
-    // Delete Modal Events
-    UI.els.closeDeleteModalBtn.addEventListener('click', () => UI.toggleDeleteModal(false));
-    UI.els.deleteCancelBtn.addEventListener('click', () => UI.toggleDeleteModal(false));
-    UI.els.deleteConfirmBtn.addEventListener('click', async () => {
-        if (state.currentUser && state.expenseIdToDelete) {
-            await Data.deleteExpense(state.currentUser.uid, state.expenseIdToDelete);
-        }
-        UI.toggleDeleteModal(false);
-        state.expenseIdToDelete = null;
-    });
+    if (UI.els.yearFilter) {
+        UI.els.yearFilter.addEventListener('change', (e) => {
+            if (e.target.value === 'all' && UI.els.monthFilter) {
+                UI.els.monthFilter.value = 'all';
+            }
+            Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
+        });
+    }
 
-    // Event Delegation for dynamic table buttons
-    UI.els.expenseTableBody.addEventListener('click', (e) => {
-        // Handle Delete Click
-        const deleteBtn = e.target.closest('.delete-expense-btn');
-        if (deleteBtn) {
-            state.expenseIdToDelete = deleteBtn.dataset.id;
-            UI.toggleDeleteModal(true, deleteBtn.dataset.item);
-            return;
-        }
-        // Handle Edit Click
-        const editBtn = e.target.closest('.edit-expense-btn');
-        if (editBtn) {
-            const expenseData = {
-                id: editBtn.dataset.id,
-                date: editBtn.dataset.date,
-                item: editBtn.dataset.item,
-                category: editBtn.dataset.category,
-                price: editBtn.dataset.price
+    if (UI.els.monthFilter) {
+        UI.els.monthFilter.addEventListener('change', (e) => {
+            if (e.target.value !== 'all' && UI.els.yearFilter) {
+                UI.els.yearFilter.value = 'all';
+            }
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, e.target.value);
+        });
+    }
+
+    if (UI.els.downloadDropdown && UI.els.downloadMenu) {
+        UI.els.downloadDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            UI.els.downloadMenu.classList.toggle('hidden');
+        });
+        window.addEventListener('click', () => UI.els.downloadMenu.classList.add('hidden'));
+    }
+
+    if (UI.els.downloadPdfBtn) {
+        UI.els.downloadPdfBtn.addEventListener('click', () => {
+            try { Export.generatePDF(state.allExpenses); } catch (e) { UI.showError(e.message); }
+        });
+    }
+
+    if (UI.els.downloadCsvBtn) {
+        UI.els.downloadCsvBtn.addEventListener('click', () => {
+            try { Export.generateCSV(state.allExpenses); } catch (e) { UI.showError(e.message); }
+        });
+    }
+
+    if (UI.els.loginBtn) {
+        UI.els.loginBtn.addEventListener('click', () => UI.toggleAuthModal(true));
+    }
+
+    if (UI.els.closeAuthModalBtn) {
+        UI.els.closeAuthModalBtn.addEventListener('click', () => UI.toggleAuthModal(false));
+    }
+
+    if (UI.els.loginTab) {
+        UI.els.loginTab.addEventListener('click', () => UI.switchAuthTab('login'));
+    }
+
+    if (UI.els.registerTab) {
+        UI.els.registerTab.addEventListener('click', () => UI.switchAuthTab('register'));
+    }
+
+    if (UI.els.logoutBtn) {
+        UI.els.logoutBtn.addEventListener('click', Auth.logoutUser);
+    }
+
+    if (UI.els.loginForm) {
+        UI.els.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try { await Auth.loginUser(e.target.email.value, e.target.password.value); }
+            catch (error) { if (UI.els.authError) UI.els.authError.textContent = error.message; }
+        });
+    }
+
+    if (UI.els.registerForm) {
+        UI.els.registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
+            catch (error) { if (UI.els.authError) UI.els.authError.textContent = error.message; }
+        });
+    }
+
+    if (UI.els.forgotPasswordLink) {
+        UI.els.forgotPasswordLink.addEventListener('click', async () => {
+            const email = UI.els.loginEmailInput?.value.trim();
+            if (!email) {
+                if (UI.els.authError) UI.els.authError.textContent = "Please enter your email address first.";
+                return;
+            }
+            try {
+                await Auth.sendPasswordReset(email);
+                alert(`Password reset email sent to ${email}. Check your inbox.`);
+            } catch (error) {
+                console.error("Reset failed:", error);
+                if (UI.els.authError) UI.els.authError.textContent = error.message;
+            }
+        });
+    }
+
+    if (UI.els.closeEditModalBtn) {
+        UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
+    }
+
+    if (UI.els.cancelEditBtn) {
+        UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));
+    }
+
+    if (UI.els.editForm) {
+        UI.els.editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!state.currentUser) return;
+
+            const updatedData = {
+                date: UI.els.editDate?.value,
+                item: UI.els.editItem?.value,
+                category: UI.els.editCategory?.value,
+                price: parseFloat(UI.els.editPrice?.value) || 0
             };
-            UI.toggleEditModal(true, expenseData);
+
+            try {
+                await Data.updateExpense(state.currentUser.uid, UI.els.editId?.value, updatedData);
+                UI.toggleEditModal(false);
+            } catch (error) {
+                console.error("Update failed:", error);
+                alert("Failed to update expense.");
+            }
+        });
+    }
+
+    // Search Functionality - FIXED
+    if (UI.els.searchInput) {
+        UI.els.searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (!query) {
+                UI.renderExpenseTable(state.allExpenses);
+                return;
+            }
+
+            if (window.Fuse) {
+                const fuse = new window.Fuse(state.allExpenses, {
+                    keys: ['item', 'category'],
+                    threshold: 0.4
+                });
+
+                const result = fuse.search(query);
+                // FIX: Fuse.js returns { item: actualObject }, so we extract .item
+                const filteredExpenses = result.map(r => r.item);
+                UI.renderExpenseTable(filteredExpenses);
+            } else {
+                // Fallback if Fuse.js not loaded
+                const filtered = state.allExpenses.filter(exp =>
+                    exp.item.toLowerCase().includes(query.toLowerCase()) ||
+                    exp.category.toLowerCase().includes(query.toLowerCase())
+                );
+                UI.renderExpenseTable(filtered);
+            }
+        });
+    }
+
+    // Setup Auth Listener
+    Auth.initAuthListener((user) => {
+        state.currentUser = user;
+        UI.updateAuthUI(user);
+        if (user) {
+            setupUserDataListeners(user.uid);
+        } else {
+            clearApplicationState();
         }
     });
-
-    // 2. Initialize Auth State Listener (Kickstarts the app)
-    Auth.initAuthListener(
-        (user) => {
-            // On Login
-            console.log("User authenticated:", user.uid);
-            state.currentUser = user;
-            UI.updateAuthUI(user);
-            setupUserDataListeners(user.uid);
-        },
-        () => {
-            // On Logout
-            console.log("User signed out");
-            clearApplicationState();
-            UI.updateAuthUI(null);
-        }
-    );
 }
 
-// Start the app when DOM is ready
 window.onload = init;

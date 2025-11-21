@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -457,18 +458,7 @@
             </div>
 
             <div class="bg-white p-6 rounded-lg shadow-md">
-              <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">Monthly Breakdown</h2>
-                <div class="text-right">
-                  <span class="text-xs text-gray-500">All-Time Total</span>
-                  <p
-                    id="all-time-total"
-                    class="text-lg font-semibold text-gray-800"
-                  >
-                    ₹0.00
-                  </p>
-                </div>
-              </div>
+              <h2 class="text-lg font-semibold mb-4">Monthly Breakdown</h2>
               <div id="monthly-breakdown" class="breakdown-list space-y-2">
                 <p class="text-gray-500 text-sm">Log in for details.</p>
               </div>
@@ -548,30 +538,33 @@
                 </span>
               </button>
               <p class="text-xs text-gray-500 mt-2">
-                To upload a Google Doc, first download it as a .docx file.
+                Supports .txt, .pdf, .docx, and images (JPEG, PNG, WebP, HEIC).
               </p>
-
               <button
                 id="analyze-button"
-                class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                class="mt-3 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out flex items-center justify-center"
               >
                 Analyze Expenses
               </button>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
-              <div
-                class="p-6 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"
-              >
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold">Full Expense Log</h2>
-                <div class="relative inline-block text-left">
-                  <div>
+                <div class="flex items-center gap-3">
+                  <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Search expenses..."
+                    class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <div class="relative inline-block text-left">
                     <button
-                      type="button"
-                      class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
                       id="download-dropdown-button"
-                      aria-haspopup="true"
+                      type="button"
+                      class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       aria-expanded="true"
+                      aria-haspopup="true"
                     >
                       Download
                       <svg
