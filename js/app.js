@@ -174,115 +174,178 @@ function clearApplicationState() {
     if (state.unsubExpenses) state.unsubExpenses();
     if (state.unsubBudget) state.unsubBudget();
 
-    UI.els.budgetInput.value = '';
+    if (UI.els.budgetInput) {
+        UI.els.budgetInput.value = '';
+    }
     updateApplicationData(); // Will render empty states
 }
 
 // --- Main Entry Point ---
 function init() {
     UI.initTheme();
-    // 1. Attach Global Event Listeners
-    // NEW: Toggle theme AND refresh charts to apply new text colors
-    UI.els.themeToggleBtn.addEventListener('click', () => {
-        UI.toggleTheme();
-        // Force charts to re-render with new theme colors
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, UI.els.monthFilter.value);
-    });
-    UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
-    UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
-    UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
-    UI.els.fileUploadInput.addEventListener('change', handleFileUpload);
-    UI.els.budgetInput.addEventListener('input', handleBudgetInput);
+
+    // 1. Attach Global Event Listeners with null checks
+    if (UI.els.themeToggleBtn) {
+        UI.els.themeToggleBtn.addEventListener('click', () => {
+            UI.toggleTheme();
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, UI.els.monthFilter?.value);
+        });
+    }
+
+    if (UI.els.analyzeBtn) {
+        UI.els.analyzeBtn.addEventListener('click', handleAnalyzeClick);
+    }
+
+    if (UI.els.closeErrorBtn) {
+        UI.els.closeErrorBtn.addEventListener('click', UI.hideError);
+    }
+
+    if (UI.els.fileUploadBtn && UI.els.fileUploadInput) {
+        UI.els.fileUploadBtn.addEventListener('click', () => UI.els.fileUploadInput.click());
+        UI.els.fileUploadInput.addEventListener('change', handleFileUpload);
+    }
+
+    if (UI.els.budgetInput) {
+        UI.els.budgetInput.addEventListener('input', handleBudgetInput);
+    }
 
     // Tab Navigation
-    UI.els.trackerTabBtn.addEventListener('click', () => UI.switchMainTab('tracker'));
-    UI.els.dashboardTabBtn.addEventListener('click', () => {
-        UI.switchMainTab('dashboard');
-        // Ensure charts resize correctly when becoming visible
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, UI.els.monthFilter.value);
-    });
+    if (UI.els.trackerTabBtn) {
+        UI.els.trackerTabBtn.addEventListener('click', () => UI.switchMainTab('tracker'));
+    }
+
+    if (UI.els.dashboardTabBtn) {
+        UI.els.dashboardTabBtn.addEventListener('click', () => {
+            UI.switchMainTab('dashboard');
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, UI.els.monthFilter?.value);
+        });
+    }
 
     // Dashboard Filters
-    UI.els.yearFilter.addEventListener('change', (e) => {
-        // If switching back to "All Years", reset month filter to "all"
-        if (e.target.value === 'all') {
-            UI.els.monthFilter.value = 'all';
-        }
-        Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
-    });
-    UI.els.monthFilter.addEventListener('change', (e) => {
-        // If a specific month is chosen, force year to 'all' to avoid conflicting filters
-        if (e.target.value !== 'all') UI.els.yearFilter.value = 'all';
-        Charts.updateCharts(state.allExpenses, UI.els.yearFilter.value, e.target.value);
-    });
+    if (UI.els.yearFilter) {
+        UI.els.yearFilter.addEventListener('change', (e) => {
+            if (e.target.value === 'all' && UI.els.monthFilter) {
+                UI.els.monthFilter.value = 'all';
+            }
+            Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
+        });
+    }
+
+    if (UI.els.monthFilter) {
+        UI.els.monthFilter.addEventListener('change', (e) => {
+            if (e.target.value !== 'all' && UI.els.yearFilter) {
+                UI.els.yearFilter.value = 'all';
+            }
+            Charts.updateCharts(state.allExpenses, UI.els.yearFilter?.value, e.target.value);
+        });
+    }
 
     // Download Menu
-    UI.els.downloadDropdown.addEventListener('click', (e) => {
-        e.stopPropagation();
-        UI.els.downloadMenu.classList.toggle('hidden');
-    });
-    window.addEventListener('click', () => UI.els.downloadMenu.classList.add('hidden'));
-    UI.els.downloadPdfBtn.addEventListener('click', () => {
-        try { Export.generatePDF(state.allExpenses); } catch (e) { UI.showError(e.message); }
-    });
-    UI.els.downloadCsvBtn.addEventListener('click', () => {
-        try { Export.generateCSV(state.allExpenses); } catch (e) { UI.showError(e.message); }
-    });
+    if (UI.els.downloadDropdown && UI.els.downloadMenu) {
+        UI.els.downloadDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            UI.els.downloadMenu.classList.toggle('hidden');
+        });
+        window.addEventListener('click', () => UI.els.downloadMenu.classList.add('hidden'));
+    }
+
+    if (UI.els.downloadPdfBtn) {
+        UI.els.downloadPdfBtn.addEventListener('click', () => {
+            try { Export.generatePDF(state.allExpenses); } catch (e) { UI.showError(e.message); }
+        });
+    }
+
+    if (UI.els.downloadCsvBtn) {
+        UI.els.downloadCsvBtn.addEventListener('click', () => {
+            try { Export.generateCSV(state.allExpenses); } catch (e) { UI.showError(e.message); }
+        });
+    }
 
     // Auth Events
-    UI.els.loginBtn.addEventListener('click', () => UI.toggleAuthModal(true));
-    UI.els.closeAuthModalBtn.addEventListener('click', () => UI.toggleAuthModal(false));
-    UI.els.loginTab.addEventListener('click', () => UI.switchAuthTab('login'));
-    UI.els.registerTab.addEventListener('click', () => UI.switchAuthTab('register'));
-    UI.els.logoutBtn.addEventListener('click', Auth.logoutUser);
+    if (UI.els.loginBtn) {
+        UI.els.loginBtn.addEventListener('click', () => UI.toggleAuthModal(true));
+    }
 
-    UI.els.loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try { await Auth.loginUser(e.target.email.value, e.target.password.value); }
-        catch (error) { UI.els.authError.textContent = error.message; }
-    });
-    UI.els.registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
-        catch (error) { UI.els.authError.textContent = error.message; }
-    });
+    if (UI.els.closeAuthModalBtn) {
+        UI.els.closeAuthModalBtn.addEventListener('click', () => UI.toggleAuthModal(false));
+    }
+
+    if (UI.els.loginTab) {
+        UI.els.loginTab.addEventListener('click', () => UI.switchAuthTab('login'));
+    }
+
+    if (UI.els.registerTab) {
+        UI.els.registerTab.addEventListener('click', () => UI.switchAuthTab('register'));
+    }
+
+    if (UI.els.logoutBtn) {
+        UI.els.logoutBtn.addEventListener('click', Auth.logoutUser);
+    }
+
+    if (UI.els.loginForm) {
+        UI.els.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try { await Auth.loginUser(e.target.email.value, e.target.password.value); }
+            catch (error) { if (UI.els.authError) UI.els.authError.textContent = error.message; }
+        });
+    }
+
+    if (UI.els.registerForm) {
+        UI.els.registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try { await Auth.registerUser(e.target.email.value, e.target.password.value); }
+            catch (error) { if (UI.els.authError) UI.els.authError.textContent = error.message; }
+        });
+    }
+
     // Forgot Password
-    UI.els.forgotPasswordLink.addEventListener('click', async () => {
-        const email = UI.els.loginEmailInput.value.trim();
-        if (!email) {
-            UI.els.authError.textContent = "Please enter your email address first.";
-            return;
-        }
-        try {
-            await Auth.sendPasswordReset(email);
-            alert(`Password reset email sent to ${email}. Check your inbox.`);
-        } catch (error) {
-            console.error("Reset failed:", error);
-            UI.els.authError.textContent = error.message;
-        }
-    });
+    if (UI.els.forgotPasswordLink) {
+        UI.els.forgotPasswordLink.addEventListener('click', async () => {
+            const email = UI.els.loginEmailInput?.value.trim();
+            if (!email) {
+                if (UI.els.authError) UI.els.authError.textContent = "Please enter your email address first.";
+                return;
+            }
+            try {
+                await Auth.sendPasswordReset(email);
+                alert(`Password reset email sent to ${email}. Check your inbox.`);
+            } catch (error) {
+                console.error("Reset failed:", error);
+                if (UI.els.authError) UI.els.authError.textContent = error.message;
+            }
+        });
+    }
+
     // Edit Modal Events
-    UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
-    UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));
-    UI.els.editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!state.currentUser) return;
+    if (UI.els.closeEditModalBtn) {
+        UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
+    }
 
-        const updatedData = {
-            date: UI.els.editDate.value,
-            item: UI.els.editItem.value,
-            category: UI.els.editCategory.value,
-            price: parseFloat(UI.els.editPrice.value) || 0
-        };
+    if (UI.els.cancelEditBtn) {
+        UI.els.cancelEditBtn.addEventListener('click', () => UI.toggleEditModal(false));
+    }
 
-        try {
-            await Data.updateExpense(state.currentUser.uid, UI.els.editId.value, updatedData);
-            UI.toggleEditModal(false);
-        } catch (error) {
-            console.error("Update failed:", error);
-            alert("Failed to update expense.");
-        }
-    });
+    if (UI.els.editForm) {
+        UI.els.editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!state.currentUser) return;
+
+            const updatedData = {
+                date: UI.els.editDate?.value,
+                item: UI.els.editItem?.value,
+                category: UI.els.editCategory?.value,
+                price: parseFloat(UI.els.editPrice?.value) || 0
+            };
+
+            try {
+                await Data.updateExpense(state.currentUser.uid, UI.els.editId?.value, updatedData);
+                UI.toggleEditModal(false);
+            } catch (error) {
+                console.error("Update failed:", error);
+                alert("Failed to update expense.");
+            }
+        });
+    }
 
     // Search Functionality
     if (UI.els.searchInput) {
