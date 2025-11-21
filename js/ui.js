@@ -309,22 +309,29 @@ function renderBreakdownList(containerEl, dataMap, formatter = null, limit = Inf
 export function navigateToDashboardWithFilters(year, month) {
     switchMainTab('dashboard');
 
+    // Ensure the year exists in the year filter options
     if (els.yearFilter) {
         let yearOption = Array.from(els.yearFilter.options).find(opt => opt.value === year);
         if (!yearOption) {
             yearOption = new Option(year, year);
             els.yearFilter.add(yearOption);
         }
-        els.yearFilter.value = 'all';
+        // Set the year filter to the specific year (not 'all')
+        // This will trigger populateFilters which will populate the month dropdown
+        els.yearFilter.value = year;
+        // Trigger the year filter change event to populate month options
+        els.yearFilter.dispatchEvent(new Event('change'));
     }
 
-    if (els.monthFilter) {
-        els.monthFilter.value = `${year}-${month}`;
-    }
-
-    if (els.monthFilter) {
-        els.monthFilter.dispatchEvent(new Event('change'));
-    }
+    // Use setTimeout to ensure the month filter has been populated before setting its value
+    setTimeout(() => {
+        if (els.monthFilter) {
+            // Set the month filter to the specific year-month
+            els.monthFilter.value = `${year}-${month}`;
+            // Trigger change event to update charts
+            els.monthFilter.dispatchEvent(new Event('change'));
+        }
+    }, 50);
 }
 // --- Theme ---
 export function toggleTheme() {
