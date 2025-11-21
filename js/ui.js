@@ -16,7 +16,6 @@ export const els = {
     monthlyBreakdown: document.getElementById('monthly-breakdown'),
     dailyBreakdown: document.getElementById('daily-breakdown'),
     expenseTableBody: document.getElementById('expense-table-body'),
-    allTimeTotal: document.getElementById('all-time-total'),
     budgetInput: document.getElementById('budget-input'),
     budgetProgress: document.getElementById('budget-progress'),
     budgetSpentText: document.getElementById('budget-spent-text'),
@@ -210,9 +209,6 @@ export function renderExpenseTable(expenses) {
 }
 
 export function renderSummaries(expenses, monthlyBudget) {
-    const allTimeTotal = expenses.reduce((sum, exp) => sum + (exp.price || 0), 0);
-    els.allTimeTotal.textContent = `₹${allTimeTotal.toFixed(2)}`;
-
     const monthly = {};
     const daily = {};
     const currentMonthISO = new Date().toISOString().slice(0, 7);
