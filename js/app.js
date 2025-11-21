@@ -6,17 +6,13 @@ import * as Export from './export.js';
 import { debounce, generateKnowledgeBase } from './utils.js';
 
 // --- Application State ---
-// Centralized state management replaces scattered global variables
 const state = {
     currentUser: null,
     allExpenses: [],
     monthlyBudget: 0,
-    // Store unsubscribe functions to detach listeners on logout
     unsubExpenses: null,
     unsubBudget: null,
-    // Temporary storage for the expense currently being deleted
     expenseIdToDelete: null,
-    // NEW: Store pending image attachments
     pendingAttachments: []
 };
 
@@ -37,10 +33,7 @@ async function handleAnalyzeClick() {
     UI.showLoading(true);
 
     try {
-        // 1. Generate the knowledge base from current complete history
         const historyContext = generateKnowledgeBase(state.allExpenses);
-
-        // 2. Pass it to the AI
         const expenses = await Data.analyzeTextWithAI(rawText, historyContext, state.pendingAttachments);
 
         if (!expenses || expenses.length === 0) {
@@ -51,7 +44,6 @@ async function handleAnalyzeClick() {
         await Promise.all(savePromises);
 
         UI.els.expenseInput.value = '';
-        // Clear attachments
         state.pendingAttachments = [];
         renderAttachments();
     } catch (error) {
@@ -71,23 +63,20 @@ async function handleFileUpload(e) {
 
     try {
         if (file.type.startsWith('image/')) {
-            // Handle Image
             const reader = new FileReader();
             reader.onload = (event) => {
-                const base64String = event.target.result.split(',')[1]; // Strip "data:image/jpeg;base64,"
+                const base64String = event.target.result.split(',')[1];
                 state.pendingAttachments.push({
                     mimeType: file.type,
                     data: base64String,
-                    previewUrl: event.target.result // Keep full URL for preview
+                    previewUrl: event.target.result
                 });
                 renderAttachments();
                 UI.showFileLoading(false);
             };
             reader.readAsDataURL(file);
         } else {
-            // Handle Document (Text/PDF/Docx)
             const text = await Data.parseFile(file);
-            // Append parsed text to the textarea
             UI.els.expenseInput.value = (UI.els.expenseInput.value + '\n\n' + text).trim();
             UI.showFileLoading(false);
         }
@@ -96,7 +85,6 @@ async function handleFileUpload(e) {
         UI.showError(error.message);
         UI.showFileLoading(false);
     } finally {
-        // Reset file input so the same file can be selected again if needed
         UI.els.fileUploadInput.value = null;
     }
 }
@@ -128,30 +116,24 @@ function renderAttachments() {
     });
 }
 
-// Debounce budget saving to avoid too many Firestore writes while typing
 const handleBudgetInput = debounce((e) => {
     if (!state.currentUser) return;
     const amount = parseFloat(e.target.value) || 0;
     Data.saveBudget(state.currentUser.uid, amount);
-    // Note: No need to manually update UI here, the real-time listener will catch the change
 }, 1000);
 
 // --- Initialization & State Management ---
 
-// Called whenever new data arrives from Firestore
 const updateApplicationData = debounce(() => {
-    // Update Views
     UI.renderExpenseTable(state.allExpenses);
     UI.renderSummaries(state.allExpenses, state.monthlyBudget);
     Charts.updateDashboard(state.allExpenses, UI.els.yearFilter, UI.els.monthFilter);
 }, 250);
 
 function setupUserDataListeners(userId) {
-    // Detach previous listeners if they exist
     if (state.unsubExpenses) state.unsubExpenses();
     if (state.unsubBudget) state.unsubBudget();
 
-    // Attach new listeners
     state.unsubExpenses = Data.attachExpenseListener(userId, (expenses) => {
         state.allExpenses = expenses;
         updateApplicationData();
@@ -159,7 +141,6 @@ function setupUserDataListeners(userId) {
 
     state.unsubBudget = Data.attachBudgetListener(userId, (amount) => {
         state.monthlyBudget = amount;
-        // Only update the input if the user isn't currently typing in it
         if (document.activeElement !== UI.els.budgetInput) {
             UI.els.budgetInput.value = amount > 0 ? amount : '';
         }
@@ -177,14 +158,13 @@ function clearApplicationState() {
     if (UI.els.budgetInput) {
         UI.els.budgetInput.value = '';
     }
-    updateApplicationData(); // Will render empty states
+    updateApplicationData();
 }
 
 // --- Main Entry Point ---
 function init() {
     UI.initTheme();
 
-    // 1. Attach Global Event Listeners with null checks
     if (UI.els.themeToggleBtn) {
         UI.els.themeToggleBtn.addEventListener('click', () => {
             UI.toggleTheme();
@@ -209,7 +189,6 @@ function init() {
         UI.els.budgetInput.addEventListener('input', handleBudgetInput);
     }
 
-    // Tab Navigation
     if (UI.els.trackerTabBtn) {
         UI.els.trackerTabBtn.addEventListener('click', () => UI.switchMainTab('tracker'));
     }
@@ -221,7 +200,6 @@ function init() {
         });
     }
 
-    // Dashboard Filters
     if (UI.els.yearFilter) {
         UI.els.yearFilter.addEventListener('change', (e) => {
             if (e.target.value === 'all' && UI.els.monthFilter) {
@@ -240,7 +218,6 @@ function init() {
         });
     }
 
-    // Download Menu
     if (UI.els.downloadDropdown && UI.els.downloadMenu) {
         UI.els.downloadDropdown.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -261,7 +238,6 @@ function init() {
         });
     }
 
-    // Auth Events
     if (UI.els.loginBtn) {
         UI.els.loginBtn.addEventListener('click', () => UI.toggleAuthModal(true));
     }
@@ -298,7 +274,6 @@ function init() {
         });
     }
 
-    // Forgot Password
     if (UI.els.forgotPasswordLink) {
         UI.els.forgotPasswordLink.addEventListener('click', async () => {
             const email = UI.els.loginEmailInput?.value.trim();
@@ -316,7 +291,6 @@ function init() {
         });
     }
 
-    // Edit Modal Events
     if (UI.els.closeEditModalBtn) {
         UI.els.closeEditModalBtn.addEventListener('click', () => UI.toggleEditModal(false));
     }
@@ -347,7 +321,7 @@ function init() {
         });
     }
 
-    // Search Functionality
+    // Search Functionality - FIXED
     if (UI.els.searchInput) {
         UI.els.searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
@@ -356,15 +330,24 @@ function init() {
                 return;
             }
 
-            // @ts-ignore
-            const fuse = new window.Fuse(state.allExpenses, {
-                keys: ['item', 'category'],
-                threshold: 0.4
-            });
+            if (window.Fuse) {
+                const fuse = new window.Fuse(state.allExpenses, {
+                    keys: ['item', 'category'],
+                    threshold: 0.4
+                });
 
-            const result = fuse.search(query);
-            const filteredExpenses = result.map(r => r.item);
-            UI.renderExpenseTable(filteredExpenses);
+                const result = fuse.search(query);
+                // FIX: Fuse.js returns { item: actualObject }, so we extract .item
+                const filteredExpenses = result.map(r => r.item);
+                UI.renderExpenseTable(filteredExpenses);
+            } else {
+                // Fallback if Fuse.js not loaded
+                const filtered = state.allExpenses.filter(exp =>
+                    exp.item.toLowerCase().includes(query.toLowerCase()) ||
+                    exp.category.toLowerCase().includes(query.toLowerCase())
+                );
+                UI.renderExpenseTable(filtered);
+            }
         });
     }
 
@@ -380,5 +363,4 @@ function init() {
     });
 }
 
-// Start the app when DOM is ready
 window.onload = init;
