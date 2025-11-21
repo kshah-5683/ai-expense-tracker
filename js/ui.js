@@ -315,7 +315,7 @@ export function navigateToDashboardWithFilters(year, month) {
             yearOption = new Option(year, year);
             els.yearFilter.add(yearOption);
         }
-        els.yearFilter.value = year;
+        els.yearFilter.value = 'all';
     }
 
     if (els.monthFilter) {
