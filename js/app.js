@@ -350,6 +350,44 @@ function init() {
             }
         });
     }
+    // --- Event Delegation for Dynamic Content (Edit/Delete) ---
+    if (UI.els.expenseTableBody) {
+        UI.els.expenseTableBody.addEventListener('click', async (e) => {
+            if (!state.currentUser) return;
+
+            const editBtn = e.target.closest('.edit-expense-btn');
+            if (editBtn) {
+                const expense = {
+                    id: editBtn.dataset.id,
+                    date: editBtn.dataset.date,
+                    item: editBtn.dataset.item,
+                    category: editBtn.dataset.category,
+                    price: parseFloat(editBtn.dataset.price)
+                };
+                UI.toggleEditModal(true, expense);
+                return;
+            }
+
+            const deleteBtn = e.target.closest('.delete-expense-btn');
+            if (deleteBtn) {
+                state.expenseIdToDelete = deleteBtn.dataset.id;
+                UI.toggleDeleteModal(true, deleteBtn.dataset.item);
+            }
+        });
+    }
+
+    if (UI.els.deleteConfirmBtn) {
+        UI.els.deleteConfirmBtn.addEventListener('click', async () => {
+            if (state.expenseIdToDelete && state.currentUser) {
+                try {
+                    await Data.deleteExpense(state.currentUser.uid, state.expenseIdToDelete);
+                } catch (error) {
+                    UI.showError(`Failed to delete expense: ${error.message}`);
+                }
+            }
+            UI.toggleDeleteModal(false);
+        });
+    }
     // Handle monthly breakdown item clicks
     document.addEventListener('click', (e) => {
         const monthlyItem = e.target.closest('.monthly-breakdown-item');
