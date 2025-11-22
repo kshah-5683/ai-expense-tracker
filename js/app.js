@@ -350,6 +350,17 @@ function init() {
             }
         });
     }
+    // Handle monthly breakdown item clicks
+    document.addEventListener('click', (e) => {
+        const monthlyItem = e.target.closest('.monthly-breakdown-item');
+        if (monthlyItem) {
+            const year = monthlyItem.getAttribute('data-year');
+            const month = monthlyItem.getAttribute('data-month');
+            if (year && month) {
+                UI.navigateToDashboardWithFilters(year, month);
+            }
+        }
+    });
 
     // Setup Auth Listener
     Auth.initAuthListener((user) => {
