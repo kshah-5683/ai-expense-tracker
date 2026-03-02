@@ -32,7 +32,7 @@ export default async (req) => {
             });
         }
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
 
         // 3. Construct the same system prompt and payload here, on the server
         const systemPrompt = `You are an expert financial assistant. Your task is to extract expense information from unstructured text and images (receipts/bills).
